@@ -8,15 +8,13 @@ import { prisma } from "@/lib/prisma";
 import { generateUniqueUsername } from "@/lib/auth-utils";
 import { ensureAdminFromEnv, isEnvAdminEmail } from "@/lib/admin-seed";
 import { rateLimit, ipFromHeaders } from "@/lib/rate-limit";
+import authConfig from "@/auth.config";
 
 export const REF_COOKIE = "bnc_ref";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login",
-  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -107,6 +105,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   callbacks: {
+    // `session` is inherited from the edge-safe authConfig (it only projects
+    // token claims onto the session). The DB-backed `jwt` callback below is
+    // Node-only and therefore lives here, not in auth.config.ts.
+    ...authConfig.callbacks,
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id!;
@@ -126,14 +128,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.username = token.username as string;
-        session.user.role = token.role as string;
-      }
-      return session;
     },
   },
 });

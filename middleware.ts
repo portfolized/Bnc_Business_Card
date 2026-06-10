@@ -1,5 +1,11 @@
-import { auth } from "@/auth";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import authConfig from "@/auth.config";
+
+// Build a dedicated, edge-safe auth instance from the lightweight config so the
+// middleware bundle never pulls in Prisma/bcrypt (which blew the Edge Function
+// past Vercel's 1 MB limit). The full `@/auth` stays for Node-runtime routes.
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const isLoggedIn = !!req.auth;
