@@ -1,0 +1,53 @@
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+
+// A "card" is a Profile. This endpoint lists / creates the cards a user owns,
+// so the Themes, Domain and Orders pages can let the user pick which card to act on.
+// Cards are uncapped; the limit applies to claimed domains (see /api/domain).
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const cards = await prisma.profile.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      label: true,
+      slug: true,
+      fullName: true,
+      cardTemplate: true,
+      cardAccent: true,
+      avatarUrl: true,
+      frontImageUrl: true,
+      backImageUrl: true,
+      createdAt: true,
+    },
+  });
+
+  return NextResponse.json(cards);
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const { label, cardTemplate } = body ?? {};
+
+  const card = await prisma.profile.create({
+    data: {
+      userId: session.user.id,
+      label: typeof label === "string" && label.trim() ? label.trim() : "New Card",
+      cardTemplate: typeof cardTemplate === "string" && cardTemplate ? cardTemplate : "classic",
+    },
+  });
+
+  return NextResponse.json(card, { status: 201 });
+}

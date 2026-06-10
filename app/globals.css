@@ -1,26 +1,66 @@
 @import "tailwindcss";
 
+/* BNC brand colors (exact from logo) */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111827;
+  --primary: #00a54f;
+  --subtext: #6b7280;
+  --section-gray: #faf8f5;
+  --bnc-green: #00a54f;
+  --bnc-yellow: #fff200;
+  --bnc-red: #ed1c24;
+  --bnc-orange: #de8633;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary: var(--primary);
+  --color-subtext: var(--subtext);
+  --color-section-gray: var(--section-gray);
+  --color-bnc-green: var(--bnc-green);
+  --color-bnc-yellow: var(--bnc-yellow);
+  --color-bnc-red: var(--bnc-red);
+  --color-bnc-orange: var(--bnc-orange);
+  --font-sans: var(--font-inter);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes scroll-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes scroll-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
