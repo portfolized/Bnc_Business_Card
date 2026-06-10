@@ -7,6 +7,11 @@ import Google from "next-auth/providers/google";
 // provider's `authorize`, events, the DB-backed jwt fallback) live in auth.ts,
 // which only runs in the Node runtime (route handlers / server).
 export default {
+  // Derive the base URL (OAuth callbacks, redirects) from the incoming request
+  // host instead of a hardcoded AUTH_URL. This makes auth resolve to whatever
+  // domain the app is actually served from — the current deployment URL in
+  // production, localhost in dev — so AUTH_URL must NOT be set in production.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",

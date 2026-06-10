@@ -4,7 +4,23 @@
 // Set KHALTI_SECRET_KEY in .env. Amounts are sent to Khalti in paisa
 // (1 NPR = 100 paisa).
 
-const BASE = (process.env.KHALTI_BASE_URL || "https://a.khalti.com/api/v2").replace(/\/$/, "");
+// Sandbox vs live host. The test credentials (Khalti IDs 9800000000–9800000005,
+// MPIN 1111, OTP 987654) ONLY work on the sandbox checkout served by dev.khalti.com;
+// the live host rejects them. The secret key must also match the host — a test
+// key authorizes only against sandbox, a live key only against production.
+//
+// Selection order (so the host and key can never silently drift apart):
+//   1. KHALTI_BASE_URL  — explicit override, if you really need a custom host.
+//   2. KHALTI_ENV=live  — production host (https://khalti.com/api/v2).
+//   3. default          — sandbox host (https://dev.khalti.com/api/v2).
+// Default is sandbox so that a missing/forgotten env var fails SAFE toward test,
+// instead of silently charging real cards / rejecting test credentials on live.
+const SANDBOX_BASE = "https://dev.khalti.com/api/v2";
+const LIVE_BASE = "https://khalti.com/api/v2";
+const BASE = (
+  process.env.KHALTI_BASE_URL ||
+  (process.env.KHALTI_ENV === "live" ? LIVE_BASE : SANDBOX_BASE)
+).replace(/\/$/, "");
 const KEY = process.env.KHALTI_SECRET_KEY;
 
 export function isKhaltiConfigured() {
