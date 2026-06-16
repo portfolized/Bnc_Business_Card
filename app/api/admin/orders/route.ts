@@ -10,7 +10,21 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       user: { select: { name: true, email: true, username: true } },
-      profile: { select: { label: true, slug: true } },
+      profile: {
+        select: {
+          label: true,
+          slug: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          website: true,
+          role: true,
+          location: true,
+          cardTemplate: true,
+          frontImageUrl: true,
+          backImageUrl: true,
+        },
+      },
     },
   });
 

@@ -27,18 +27,77 @@ import {
 } from "lucide-react";
 import { CARD_TEMPLATES } from "@/components/customize/templateRegistry";
 import { PENDING_CARD_KEY, type PendingCard, type PersonalInfo } from "@/components/customize/types";
+import CardQr from "@/components/customize/CardQr";
 import ImageUpload from "@/components/ui/ImageUpload";
 import { formatNpr, CARD_PRICE_NPR } from "@/lib/currency";
+
+const stripProtocol = (url: string) => url.replace(/^https?:\/\//, "");
+
+// Renders a card face whose background is ONLY the user's uploaded image (no
+// template graphics), with the contact details / QR overlaid for legibility.
+function CustomImageFace({
+  side,
+  info,
+  bg,
+  showQr,
+}: {
+  side: "front" | "back";
+  info: PersonalInfo;
+  bg: string | null;
+  showQr: boolean;
+}) {
+  return (
+    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-gray-200">
+      {bg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-500">
+          No {side} image yet
+        </div>
+      )}
+
+      {side === "front" ? (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
+          <div className="relative flex h-full flex-col justify-end gap-1.5 p-5 text-white">
+            <h4 className="text-xl font-bold leading-tight sm:text-2xl">{info.fullName}</h4>
+            {info.role && <p className="text-[11px] uppercase tracking-widest text-white/80">{info.role}</p>}
+            <div className="mt-1 space-y-0.5 text-[10px] text-white/90 sm:text-[11px]">
+              {info.phone && <p className="truncate">{info.phone}</p>}
+              {info.email && <p className="truncate">{info.email}</p>}
+              {info.website && <p className="truncate">{stripProtocol(info.website)}</p>}
+              {info.address && <p className="truncate">{info.address}</p>}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="absolute inset-0 bg-black/55" />
+          <div className="relative flex h-full flex-col items-center justify-center gap-2.5 p-5 text-white">
+            {info.fullName && (
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-white/80">{info.fullName}</p>
+            )}
+            {showQr && <CardQr />}
+            <p className="text-[10px] uppercase tracking-widest text-white/70">Scan to connect</p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // Live card preview showing BOTH faces, so the entered details and the QR
 // toggle are visible at a glance. Mirrors the landing "Design Preview".
 function PreviewCards({
+  designMode,
   templateId,
   info,
   frontImageUrl,
   backImageUrl,
   showQr = true,
 }: {
+  designMode: DesignMode;
   templateId: string;
   info: PersonalInfo;
   frontImageUrl: string | null;
@@ -48,18 +107,27 @@ function PreviewCards({
   const template = CARD_TEMPLATES.find((t) => t.id === templateId) ?? CARD_TEMPLATES[0];
   const Comp = template.Component;
 
+  // Image mode: the background is ONLY the uploaded image (front uses the front
+  // upload, back the back upload — no template image or graphics).
+  const uploadBg = (side: "front" | "back") =>
+    side === "front" ? frontImageUrl || backImageUrl : backImageUrl || frontImageUrl;
+
   const face = (side: "front" | "back", label: string) => (
     <div>
       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
       <div className="relative aspect-[1.586/1] w-full overflow-hidden rounded-xl shadow-md ring-1 ring-black/5">
-        <Comp
-          info={info}
-          side={side}
-          showQr={showQr}
-          frontLogoUrl={frontImageUrl}
-          backLogoUrl={backImageUrl}
-          backgroundImage={template.backgroundImage}
-        />
+        {designMode === "image" ? (
+          <CustomImageFace side={side} info={info} bg={uploadBg(side)} showQr={showQr} />
+        ) : (
+          <Comp
+            info={info}
+            side={side}
+            showQr={showQr}
+            frontLogoUrl={null}
+            backLogoUrl={null}
+            backgroundImage={template.backgroundImage}
+          />
+        )}
       </div>
     </div>
   );
@@ -158,6 +226,8 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
   const activeStep = STATUS_STEPS.findIndex((s) => s.key === order.status);
   const cancelled = order.status === "CANCELLED";
   const addr = order.shippingAddress ?? {};
+  const isImageMode = Boolean(order.frontImageUrl || order.backImageUrl);
+  const template = CARD_TEMPLATES.find((t) => t.id === order.cardTemplate);
 
   return (
     <div
@@ -207,13 +277,20 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
             </div>
           )}
 
-          {/* Card design */}
-          {(order.frontImageUrl || order.backImageUrl) && (
-            <div className="rounded-xl border border-gray-100 p-4">
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Card design</h3>
+          {/* Card design — template layout with either its own or a custom background */}
+          <div className="rounded-xl border border-gray-100 p-4">
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">
+              Card design — {isImageMode ? "Custom image" : templateName(order.cardTemplate)}
+            </h3>
+            {isImageMode ? (
               <CardImages front={order.frontImageUrl} back={order.backImageUrl} />
-            </div>
-          )}
+            ) : template ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={template.thumbnailImage} alt={template.name} className="h-20 w-36 rounded-lg border border-gray-200 object-cover" />
+            ) : (
+              <p className="text-sm text-gray-400">No design selected.</p>
+            )}
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-xl border border-gray-100 p-4">
@@ -233,8 +310,8 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
                 <Package className="h-3.5 w-3.5" /> Order
               </h3>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Template</span>
-                <span className="font-medium text-gray-800">{templateName(order.cardTemplate)}</span>
+                <span className="text-gray-500">Design</span>
+                <span className="font-medium text-gray-800">{isImageMode ? "Custom image" : templateName(order.cardTemplate)}</span>
               </div>
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span className="text-gray-500">Quantity</span>
@@ -282,6 +359,8 @@ function OrderDetailModal({ order, onClose }: { order: Order; onClose: () => voi
 
 type CardOption = { id: string; label: string; slug: string | null };
 
+type DesignMode = "template" | "image";
+
 type NewOrderForm = {
   profileId: string; // "new" or an existing card/domain id
   fullName: string;
@@ -290,6 +369,7 @@ type NewOrderForm = {
   address: string;
   website: string;
   role: string;
+  designMode: DesignMode; // use a built-in template OR a custom image — not both
   cardTemplate: string;
   quantity: number;
   qrEnabled: boolean;
@@ -305,6 +385,7 @@ const EMPTY_FORM: NewOrderForm = {
   address: "",
   website: "",
   role: "",
+  designMode: "template",
   cardTemplate: CARD_TEMPLATES[0].id,
   quantity: 1,
   qrEnabled: true,
@@ -431,22 +512,53 @@ function CreateOrderModal({
                 <input value={form.address} onChange={(e) => set({ address: e.target.value })} placeholder="Street, City, Country" className={inputCls} />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Template</label>
-                  <div className="relative">
-                    <select value={form.cardTemplate} onChange={(e) => set({ cardTemplate: e.target.value })} className={`${inputCls} appearance-none pr-9`}>
-                      {CARD_TEMPLATES.map((t) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              {/* Card design — choose a ready-made template OR upload your own
+                  background. The details & QR are overlaid either way. */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Card design</label>
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 p-1">
+                  <button
+                    type="button"
+                    onClick={() => set({ designMode: "template" })}
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${form.designMode === "template" ? "bg-[#5C2D91] text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    Choose a template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => set({ designMode: "image" })}
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${form.designMode === "image" ? "bg-[#5C2D91] text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    Upload your own
+                  </button>
+                </div>
+
+                {form.designMode === "template" ? (
+                  <div className="mt-3">
+                    <div className="relative">
+                      <select value={form.cardTemplate} onChange={(e) => set({ cardTemplate: e.target.value })} className={`${inputCls} appearance-none pr-9`}>
+                        {CARD_TEMPLATES.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-gray-400">Your name, role and contact details are printed on it.</p>
                   </div>
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-gray-700">Quantity</label>
-                  <input type="number" min={1} value={form.quantity} onChange={(e) => set({ quantity: Math.max(1, Number(e.target.value)) })} className={inputCls} />
-                </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <ImageUpload label="Front background (upload or Pexels)" value={form.frontImageUrl} onChange={(url) => set({ frontImageUrl: url })} className="h-24 w-full" />
+                      <ImageUpload label="Back background (upload or Pexels)" value={form.backImageUrl} onChange={(url) => set({ backImageUrl: url })} className="h-24 w-full" />
+                    </div>
+                    <p className="text-[11px] text-gray-400">Your details &amp; QR are overlaid on your image, just like a template.</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Quantity</label>
+                <input type="number" min={1} value={form.quantity} onChange={(e) => set({ quantity: Math.max(1, Number(e.target.value)) })} className={inputCls} />
               </div>
 
               <div>
@@ -462,11 +574,6 @@ function CreateOrderModal({
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <ImageUpload label="Front image (upload or Pexels)" value={form.frontImageUrl} onChange={(url) => set({ frontImageUrl: url })} className="h-24 w-full" />
-                <ImageUpload label="Back image (upload or Pexels)" value={form.backImageUrl} onChange={(url) => set({ backImageUrl: url })} className="h-24 w-full" />
               </div>
 
               {/* QR toggle */}
@@ -496,6 +603,7 @@ function CreateOrderModal({
             <div className="lg:sticky lg:top-0 lg:self-start">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Live preview</p>
               <PreviewCards
+                designMode={form.designMode}
                 templateId={form.cardTemplate}
                 showQr={form.qrEnabled}
                 info={previewInfo}

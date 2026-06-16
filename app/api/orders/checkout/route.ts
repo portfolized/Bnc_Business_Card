@@ -37,12 +37,22 @@ export async function POST(req: NextRequest) {
       backImageUrl = null,
       quantity = 1,
       qrEnabled = true,
+      designMode = "template",
       label,
     } = body ?? {};
 
     if (!fullName?.trim()) {
       return NextResponse.json({ error: "fullName is required" }, { status: 400 });
     }
+
+    // The template always provides the layout + text/QR overlay. The BACKGROUND
+    // is either the template's own image (template mode → no custom images) or
+    // the user's uploaded image(s) (image mode → keep front/back). The template
+    // id is kept in both modes so the details are laid out exactly the same.
+    const mode = designMode === "image" ? "image" : "template";
+    const finalTemplate = cardTemplate || "";
+    const finalFront = mode === "image" ? (frontImageUrl || null) : null;
+    const finalBack = mode === "image" ? (backImageUrl || null) : null;
 
     const qty = Math.max(1, Number(quantity) || 1);
 
@@ -55,9 +65,11 @@ export async function POST(req: NextRequest) {
       profile = await prisma.profile.update({
         where: { id: profile.id },
         data: {
-          cardTemplate: cardTemplate || profile.cardTemplate,
-          frontImageUrl: frontImageUrl || profile.frontImageUrl,
-          backImageUrl: backImageUrl || profile.backImageUrl,
+          // The template (layout) applies in both modes; the background images
+          // follow the order's design mode (image mode keeps them, else null).
+          cardTemplate: finalTemplate || profile.cardTemplate,
+          frontImageUrl: finalFront,
+          backImageUrl: finalBack,
         },
       });
     } else {
@@ -71,8 +83,9 @@ export async function POST(req: NextRequest) {
           website: website?.trim() ?? "",
           role: role?.trim() ?? "",
           location: address?.trim() ?? "",
-          frontImageUrl: frontImageUrl || null,
-          backImageUrl: backImageUrl || null,
+          ...(finalTemplate ? { cardTemplate: finalTemplate } : {}),
+          frontImageUrl: finalFront,
+          backImageUrl: finalBack,
         },
       });
     }
@@ -84,9 +97,9 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
         paymentStatus: "UNPAID",
         qrEnabled: Boolean(qrEnabled),
-        cardTemplate: cardTemplate || "",
-        frontImageUrl: frontImageUrl || null,
-        backImageUrl: backImageUrl || null,
+        cardTemplate: finalTemplate,
+        frontImageUrl: finalFront,
+        backImageUrl: finalBack,
         quantity: qty,
         totalAmount: Number((qty * unitPrice).toFixed(2)),
         shippingAddress: {
