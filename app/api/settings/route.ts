@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCardPriceNpr } from "@/lib/settings";
+import { getCardPrices } from "@/lib/settings";
 
-// Public, read-only app settings (e.g. card price) used by client pages.
+// Public, read-only app settings (e.g. card prices) used by client pages.
 export async function GET() {
-  const cardPriceNpr = await getCardPriceNpr();
-  return NextResponse.json({ cardPriceNpr });
+  const prices = await getCardPrices();
+  // `cardPriceNpr` (Business price) is kept for backward compatibility.
+  return NextResponse.json({ cardPriceNpr: prices.business, prices });
 }

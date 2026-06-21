@@ -56,6 +56,9 @@ export default async function PublicProfilePage({
     accent: dbProfile.cardAccent || "#7c3aed",
     headline: dbProfile.headline || "",
     skills: dbProfile.skills || "",
+    greeting: dbProfile.greeting || "",
+    ctaPrimary: dbProfile.ctaPrimary || "",
+    ctaSecondary: dbProfile.ctaSecondary || "",
   };
 
   return (

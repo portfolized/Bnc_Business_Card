@@ -18,9 +18,11 @@ import {
   Calendar,
   CreditCard,
 } from "lucide-react";
-import { formatNpr } from "@/lib/currency";
+import { formatNpr, cardTypeLabel, type CardType, type VipTier } from "@/lib/currency";
 import { downloadableImageUrl } from "@/lib/cloudinary";
 import { CARD_TEMPLATES } from "@/components/customize/templateRegistry";
+import OrderCardPreview from "@/components/customize/OrderCardPreview";
+import type { PersonalInfo } from "@/components/customize/types";
 
 type OrderStatus = "DRAFT" | "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED";
 
@@ -45,6 +47,8 @@ type AdminOrder = {
   transactionId: string | null;
   pidx: string | null;
   qrEnabled: boolean;
+  cardType: CardType;
+  cardTier: VipTier | null;
   cardTemplate: string;
   quantity: number;
   totalAmount: number;
@@ -185,6 +189,17 @@ function OrderDetailModal({ order, onClose }: { order: AdminOrder; onClose: () =
   const phone = addr.phone || p?.phone;
   const address = addr.address || p?.location;
 
+  // The details to render onto the card sample preview (same as the customer's
+  // live order preview), drawn from the order + linked card.
+  const previewInfo: PersonalInfo = {
+    fullName: name === "—" ? "" : name,
+    role: p?.role || "",
+    email: email || "",
+    website: p?.website || "",
+    phone: phone || "",
+    address: address || "",
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -220,6 +235,20 @@ function OrderDetailModal({ order, onClose }: { order: AdminOrder; onClose: () =
               <Row icon={Briefcase} label="Role" value={p?.role} />
               <Row icon={Globe} label="Website" value={p?.website} />
               <Row icon={User} label="Account" value={`${order.user.name ?? order.user.username ?? ""} <${order.user.email}>`} />
+            </div>
+          </section>
+
+          {/* Card sample — the actual card the customer designed, both faces. */}
+          <section className="rounded-xl border border-gray-100 p-4">
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Card sample</h3>
+            <div className="mx-auto max-w-xs">
+              <OrderCardPreview
+                templateId={order.cardTemplate}
+                info={previewInfo}
+                frontImageUrl={order.frontImageUrl}
+                backImageUrl={order.backImageUrl}
+                showQr={order.qrEnabled}
+              />
             </div>
           </section>
 
@@ -264,6 +293,7 @@ function OrderDetailModal({ order, onClose }: { order: AdminOrder; onClose: () =
               <Package className="h-3.5 w-3.5" /> Order
             </h3>
             <div className="space-y-2.5">
+              <Row icon={CreditCard} label="Card type" value={cardTypeLabel(order.cardType, order.cardTier)} />
               <Row icon={Package} label="Design" value={designLabel(order)} />
               <Row icon={QrCode} label="QR on back" value={order.qrEnabled ? "Yes" : "No"} />
               <Row icon={Package} label="Quantity" value={`×${order.quantity}`} />
@@ -346,6 +376,7 @@ export default function AdminOrdersPage() {
                 <tr className="border-b border-gray-200 bg-gray-50 text-left">
                   <th className="px-4 py-3 font-medium text-subtext">Order ID</th>
                   <th className="px-4 py-3 font-medium text-subtext">Customer</th>
+                  <th className="px-4 py-3 font-medium text-subtext">Type</th>
                   <th className="px-4 py-3 font-medium text-subtext">Design</th>
                   <th className="px-4 py-3 font-medium text-subtext">Download</th>
                   <th className="px-4 py-3 font-medium text-subtext">Qty</th>
@@ -366,6 +397,15 @@ export default function AdminOrdersPage() {
                         {order.shippingAddress?.name ?? order.user.name ?? order.user.username ?? "—"}
                       </p>
                       <p className="text-xs text-subtext">{order.shippingAddress?.email ?? order.user.email}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {order.cardType === "VIP" ? (
+                        <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                          {cardTypeLabel(order.cardType, order.cardTier)}
+                        </span>
+                      ) : (
+                        <span className="text-foreground">{cardTypeLabel(order.cardType, order.cardTier)}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-foreground">{designLabel(order)}</td>
                     <td className="px-4 py-3">

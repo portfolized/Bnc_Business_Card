@@ -53,6 +53,9 @@ model Profile {
   cardAccent     String   @default("#7c3aed")
   headline       String   @default("")
   skills         String   @default("")
+  greeting       String   @default("")
+  ctaPrimary     String   @default("")
+  ctaSecondary   String   @default("")
   socialLinks    Json     @default("[]")
   additionalInfo Json     @default("[]")
   views          Int      @default(0)
@@ -106,6 +109,8 @@ model Order {
   pidx            String?
   transactionId   String?
   qrEnabled       Boolean     @default(true)
+  cardType        String      @default("BUSINESS") // BUSINESS | VIP
+  cardTier        String?     // VIP only: SILVER | GOLD | PLATINUM
   cardTemplate    String      @default("")
   frontImageUrl   String?
   backImageUrl    String?

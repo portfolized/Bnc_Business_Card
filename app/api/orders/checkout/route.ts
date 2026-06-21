@@ -1,7 +1,8 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { getCardPriceNpr } from "@/lib/settings";
+import { getCardPrices } from "@/lib/settings";
+import { resolveCardUnitPrice, normalizeVipTier, type CardType } from "@/lib/currency";
 import { initiateKhaltiPayment, isKhaltiConfigured } from "@/lib/khalti";
 
 // Creates (or reuses) a DRAFT order and starts a Khalti payment for it. The
@@ -11,7 +12,6 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const unitPrice = await getCardPriceNpr();
   const origin = req.nextUrl.origin;
 
   let order;
@@ -32,17 +32,41 @@ export async function POST(req: NextRequest) {
       address = "",
       website = "",
       role = "",
+      bio = "",
       cardTemplate = "",
+      cardType = "BUSINESS",
+      cardTier = null,
       frontImageUrl = null,
       backImageUrl = null,
       quantity = 1,
       qrEnabled = true,
       designMode = "template",
+      slug = "",
       label,
     } = body ?? {};
 
     if (!fullName?.trim()) {
       return NextResponse.json({ error: "fullName is required" }, { status: 400 });
+    }
+
+    // Card type drives pricing: Business has one price, VIP has a price per tier.
+    const type: CardType = cardType === "VIP" ? "VIP" : "BUSINESS";
+    const tier = type === "VIP" ? normalizeVipTier(cardTier) : null;
+    const unitPrice = resolveCardUnitPrice(await getCardPrices(), type, tier);
+
+    // Optional: claim a domain (slug) for a brand-new card while ordering.
+    const wantSlug = typeof slug === "string" ? slug.trim().toLowerCase() : "";
+    if (wantSlug && !profileId) {
+      if (wantSlug.length < 3 || wantSlug.length > 30 || !/^[a-z0-9_]+$/.test(wantSlug)) {
+        return NextResponse.json(
+          { error: "Username must be 3-30 characters: letters, numbers, underscores only." },
+          { status: 400 }
+        );
+      }
+      const taken = await prisma.profile.findUnique({ where: { slug: wantSlug } });
+      if (taken) {
+        return NextResponse.json({ error: "That username is already taken." }, { status: 409 });
+      }
     }
 
     // The template always provides the layout + text/QR overlay. The BACKGROUND
@@ -70,6 +94,7 @@ export async function POST(req: NextRequest) {
           cardTemplate: finalTemplate || profile.cardTemplate,
           frontImageUrl: finalFront,
           backImageUrl: finalBack,
+          ...(bio?.trim() ? { bio: bio.trim() } : {}),
         },
       });
     } else {
@@ -83,7 +108,9 @@ export async function POST(req: NextRequest) {
           website: website?.trim() ?? "",
           role: role?.trim() ?? "",
           location: address?.trim() ?? "",
+          ...(bio?.trim() ? { bio: bio.trim() } : {}),
           ...(finalTemplate ? { cardTemplate: finalTemplate } : {}),
+          ...(wantSlug ? { slug: wantSlug } : {}),
           frontImageUrl: finalFront,
           backImageUrl: finalBack,
         },
@@ -97,6 +124,8 @@ export async function POST(req: NextRequest) {
         status: "DRAFT",
         paymentStatus: "UNPAID",
         qrEnabled: Boolean(qrEnabled),
+        cardType: type,
+        cardTier: tier,
         cardTemplate: finalTemplate,
         frontImageUrl: finalFront,
         backImageUrl: finalBack,

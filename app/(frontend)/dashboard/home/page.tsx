@@ -1,453 +1,193 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
-  Camera,
+  CreditCard,
+  Eye,
+  Users,
+  ShoppingBag,
+  Palette,
   Globe,
-  UserRound,
-  Mail,
-  Phone,
-  Link2,
-  Briefcase,
-  AlignLeft,
   Plus,
-  Save,
-  ChevronDown,
+  UserPlus,
+  Package,
+  ArrowRight,
+  Loader2,
 } from "lucide-react";
-import Image from "next/image";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { formatNpr } from "@/lib/currency";
 
-async function pickAndUpload(
-  e: React.ChangeEvent<HTMLInputElement>,
-  setUrl: (url: string) => void,
-) {
-  const file = e.target.files?.[0];
-  e.target.value = "";
-  if (!file) return;
-  try {
-    setUrl(await uploadToCloudinary(file));
-  } catch (err) {
-    alert(err instanceof Error ? err.message : "Image upload failed.");
-  }
-}
+type ActivityItem = {
+  type: "lead" | "order";
+  id: string;
+  title: string;
+  amount?: number;
+  createdAt: string;
+};
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type Stats = {
+  cards: number;
+  views: number;
+  leads: number;
+  orders: number;
+  draftOrders: number;
+  activity: ActivityItem[];
+};
 
-type SocialLink = { platform: string; value: string };
-type AdditionalInfo = { key: string; value: string };
-
-const PLATFORMS = [
-  "Twitter",
-  "LinkedIn",
-  "Instagram",
-  "Facebook",
-  "YouTube",
-  "GitHub",
-  "TikTok",
-  "Pinterest",
-  "Snapchat",
-  "WhatsApp",
-  "Custom",
+const STAT_CARDS: { key: keyof Stats; label: string; icon: React.ElementType; tint: string }[] = [
+  { key: "cards", label: "Cards", icon: CreditCard, tint: "bg-violet-50 text-violet-600" },
+  { key: "views", label: "Profile views", icon: Eye, tint: "bg-blue-50 text-blue-600" },
+  { key: "leads", label: "Leads", icon: Users, tint: "bg-emerald-50 text-emerald-600" },
+  { key: "orders", label: "Orders", icon: ShoppingBag, tint: "bg-amber-50 text-amber-600" },
 ];
 
-const ADDITIONAL_KEYS = [
-  "Company",
-  "Department",
-  "Address",
-  "Birthday",
-  "Note",
-  "Other",
+const QUICK_ACTIONS = [
+  { label: "Order a card", desc: "Design & order a new NFC card", href: "/dashboard/orders?new=1", icon: Plus },
+  { label: "Edit themes", desc: "Choose a template for your card", href: "/dashboard/themes", icon: Palette },
+  { label: "Set a domain", desc: "Claim your profile username", href: "/dashboard/domain", icon: Globe },
 ];
 
-// ─── Small helpers ─────────────────────────────────────────────────────────────
-
-function Label({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
-  return (
-    <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-600">
-      <Icon className="h-3.5 w-3.5 text-gray-400" strokeWidth={2} />
-      {text}
-    </label>
-  );
+function timeAgo(date: string) {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(date).toLocaleDateString();
 }
-
-function Field({ label, icon, children }: { label: string; icon: React.ElementType; children: React.ReactNode }) {
-  return (
-    <div>
-      <Label icon={icon} text={label} />
-      {children}
-    </div>
-  );
-}
-
-function Input({
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-    />
-  );
-}
-
-function Select({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-}) {
-  return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 pr-8 text-sm text-gray-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-      >
-        {options.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-    </div>
-  );
-}
-
-// ─── Section Cards ─────────────────────────────────────────────────────────────
-
-function SectionCard({ title, icon: Icon, children }: { title: string; icon: React.ElementType; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 flex items-center gap-2 text-base font-semibold text-gray-800">
-        <Icon className="h-4 w-4 text-gray-500" strokeWidth={2} />
-        {title}
-      </h2>
-      {children}
-    </div>
-  );
-}
-
-// ─── Personal Info Card ────────────────────────────────────────────────────────
-
-function PersonalInfoCard({
-  form,
-  onChange,
-}: {
-  form: {
-    fullName: string;
-    email: string;
-    phone: string;
-    website: string;
-    role: string;
-    bio: string;
-  };
-  onChange: (field: string, value: string) => void;
-}) {
-  return (
-    <SectionCard title="Personal Information" icon={UserRound}>
-      <div className="space-y-4">
-        <Field label="Full Name" icon={UserRound}>
-          <Input value={form.fullName} onChange={(v) => onChange("fullName", v)} placeholder="Full Name" />
-        </Field>
-        <Field label="Email" icon={Mail}>
-          <Input value={form.email} onChange={(v) => onChange("email", v)} placeholder="example@example.com" type="email" />
-        </Field>
-        <Field label="Phone" icon={Phone}>
-          <Input value={form.phone} onChange={(v) => onChange("phone", v)} placeholder="+977 9800000001" />
-        </Field>
-        <Field label="Website" icon={Globe}>
-          <Input value={form.website} onChange={(v) => onChange("website", v)} placeholder="https://yourwebsite.com" />
-        </Field>
-        <Field label="Role" icon={Briefcase}>
-          <Input value={form.role} onChange={(v) => onChange("role", v)} placeholder="Founder" />
-        </Field>
-        <Field label="Bio" icon={AlignLeft}>
-          <textarea
-            value={form.bio}
-            onChange={(e) => onChange("bio", e.target.value)}
-            placeholder="This is a profile, Customizable & Flexible for your use case."
-            rows={3}
-            className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-          />
-        </Field>
-      </div>
-    </SectionCard>
-  );
-}
-
-// ─── Social Links Card ─────────────────────────────────────────────────────────
-
-function SocialLinksCard({
-  links,
-  onChange,
-  onAdd,
-}: {
-  links: SocialLink[];
-  onChange: (index: number, field: keyof SocialLink, value: string) => void;
-  onAdd: () => void;
-}) {
-  return (
-    <SectionCard title="Social Links" icon={Link2}>
-      <p className="mb-4 text-xs text-gray-400">
-        For predefined platforms, you can enter just the username (e.g., &apos;john.doe&apos;). For custom platforms, please enter the full URL.
-      </p>
-      <div className="space-y-3">
-        {links.map((link, i) => (
-          <div key={i} className="flex gap-2">
-            <div className="w-36 shrink-0">
-              <Select
-                value={link.platform}
-                onChange={(v) => onChange(i, "platform", v)}
-                options={PLATFORMS}
-              />
-            </div>
-            <Input
-              value={link.value}
-              onChange={(v) => onChange(i, "value", v)}
-              placeholder="https://..."
-            />
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={onAdd}
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500 transition hover:border-blue-400 hover:text-blue-500"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add social link
-        </button>
-      </div>
-    </SectionCard>
-  );
-}
-
-// ─── Additional Info Card ──────────────────────────────────────────────────────
-
-function AdditionalInfoCard({
-  items,
-  onChange,
-  onAdd,
-}: {
-  items: AdditionalInfo[];
-  onChange: (index: number, field: keyof AdditionalInfo, value: string) => void;
-  onAdd: () => void;
-}) {
-  return (
-    <SectionCard title="Additional Info" icon={AlignLeft}>
-      <div className="space-y-3">
-        {items.map((item, i) => (
-          <div key={i} className="flex gap-2">
-            <div className="w-36 shrink-0">
-              <Select
-                value={item.key}
-                onChange={(v) => onChange(i, "key", v)}
-                options={ADDITIONAL_KEYS}
-              />
-            </div>
-            <Input
-              value={item.value}
-              onChange={(v) => onChange(i, "value", v)}
-              placeholder="Enter value"
-            />
-          </div>
-        ))}
-        <button
-          type="button"
-          onClick={onAdd}
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500 transition hover:border-blue-400 hover:text-blue-500"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add info
-        </button>
-      </div>
-    </SectionCard>
-  );
-}
-
-// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const { data: session } = useSession();
   const userName = session?.user?.name ?? "there";
 
-  // Greeting
   const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+  const greeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
 
-  // Cover & avatar
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const coverInputRef = useRef<HTMLInputElement>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Form state
-  const [form, setForm] = useState({
-    fullName: "",
-    email: session?.user?.email ?? "",
-    phone: "",
-    website: "",
-    role: "",
-    bio: "",
-  });
+  useEffect(() => {
+    fetch("/api/dashboard/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setStats(d))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([
-    { platform: "Twitter", value: "" },
-  ]);
-
-  const [additionalInfo, setAdditionalInfo] = useState<AdditionalInfo[]>([
-    { key: "Company", value: "" },
-  ]);
-
-  const handleFormChange = (field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSocialChange = (index: number, field: keyof SocialLink, value: string) => {
-    setSocialLinks((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
-  };
-
-  const handleAdditionalChange = (index: number, field: keyof AdditionalInfo, value: string) => {
-    setAdditionalInfo((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
-      return next;
-    });
-  };
-
-  const handleSave = () => {
-    // TODO: wire up API call to save profile
-    alert("Changes saved!");
+  const value = (key: keyof Stats) => {
+    const v = stats?.[key];
+    return typeof v === "number" ? v.toLocaleString("en-IN") : "—";
   };
 
   return (
     <div className="min-h-full bg-gray-50">
-      {/* ── Greeting Banner ── */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100">
-              <span className="text-xl">✦</span>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-violet-600">
-                {greeting}, {userName}
-              </p>
-              <p className="text-xs text-gray-500">
-                You are managing your dashboard. You can switch to another profile by clicking the switch profile button.
-              </p>
-            </div>
+      {/* Greeting banner */}
+      <div className="border-b border-gray-200 bg-white px-6 py-5">
+        <div className="mx-auto flex max-w-5xl items-center gap-4">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100">
+            <span className="text-xl">✦</span>
           </div>
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-          >
-            <UserRound className="h-4 w-4" />
-            Switch Profile
-          </button>
+          <div>
+            <p className="text-lg font-semibold text-violet-600">
+              {greeting}, {userName}
+            </p>
+            <p className="text-xs text-gray-500">
+              Here&apos;s how your cards are doing. Manage themes, domains and orders from one place.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-5xl px-4 pb-12 pt-0">
-        {/* ── Cover + Avatar ── */}
-        <div className="relative mb-16">
-          {/* Cover */}
-          <div
-            className="relative h-48 w-full overflow-hidden rounded-b-2xl bg-gradient-to-br from-violet-300 via-blue-200 to-purple-300"
-            style={coverUrl ? { backgroundImage: `url(${coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : {}}
-          >
-            <button
-              type="button"
-              onClick={() => coverInputRef.current?.click()}
-              className="absolute right-4 top-4 flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm backdrop-blur-sm transition hover:bg-white"
-            >
-              <Camera className="h-3.5 w-3.5" />
-              Change cover
-            </button>
-            <input
-              ref={coverInputRef}
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => pickAndUpload(e, setCoverUrl)}
-            />
-          </div>
-
-          {/* Avatar */}
-          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2">
-            <div className="relative h-20 w-20">
-              <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-white bg-gray-200 shadow-md">
-                {avatarUrl ? (
-                  <Image src={avatarUrl} alt="Avatar" fill className="object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gray-200">
-                    <UserRound className="h-10 w-10 text-gray-400" />
-                  </div>
-                )}
+      <div className="mx-auto max-w-5xl px-4 py-8">
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {STAT_CARDS.map(({ key, label, icon: Icon, tint }) => (
+            <div key={key} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className={`mb-3 inline-flex rounded-lg p-2 ${tint}`}>
+                <Icon className="h-5 w-5" />
               </div>
-              <button
-                type="button"
-                onClick={() => avatarInputRef.current?.click()}
-                className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-gray-700 text-white shadow transition hover:bg-gray-900"
-              >
-                <Camera className="h-3 w-3" />
-              </button>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(e) => pickAndUpload(e, setAvatarUrl)}
-              />
+              <p className="text-2xl font-bold text-gray-900">
+                {loading ? <Loader2 className="h-6 w-6 animate-spin text-gray-300" /> : value(key)}
+              </p>
+              <p className="text-xs text-gray-500">{label}</p>
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* ── Form Grid ── */}
-        <div className="grid gap-5 md:grid-cols-[1fr_380px]">
-          {/* Left column */}
-          <PersonalInfoCard form={form} onChange={handleFormChange} />
+        {/* Pending payment nudge */}
+        {!loading && stats && stats.draftOrders > 0 && (
+          <Link
+            href="/dashboard/orders"
+            className="mt-4 flex items-center justify-between rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 transition hover:bg-amber-100/70"
+          >
+            <span className="flex items-center gap-2.5 text-sm font-medium text-amber-800">
+              <Package className="h-4 w-4" />
+              You have {stats.draftOrders} order{stats.draftOrders > 1 ? "s" : ""} awaiting payment.
+            </span>
+            <ArrowRight className="h-4 w-4 text-amber-700" />
+          </Link>
+        )}
 
-          {/* Right column */}
-          <div className="space-y-5">
-            <SocialLinksCard
-              links={socialLinks}
-              onChange={handleSocialChange}
-              onAdd={() => setSocialLinks((prev) => [...prev, { platform: "Twitter", value: "" }])}
-            />
-            <AdditionalInfoCard
-              items={additionalInfo}
-              onChange={handleAdditionalChange}
-              onAdd={() => setAdditionalInfo((prev) => [...prev, { key: "Company", value: "" }])}
-            />
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-green-600"
-            >
-              <Save className="h-4 w-4" />
-              Save changes
-            </button>
+        <div className="mt-6 grid gap-6 md:grid-cols-[1fr_360px]">
+          {/* Recent activity */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-base font-semibold text-gray-800">Recent activity</h2>
+            {loading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-300" />
+              </div>
+            ) : stats && stats.activity.length > 0 ? (
+              <ul className="space-y-3">
+                {stats.activity.map((a) => (
+                  <li key={`${a.type}-${a.id}`} className="flex items-center gap-3">
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        a.type === "lead" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                      }`}
+                    >
+                      {a.type === "lead" ? <UserPlus className="h-4 w-4" /> : <ShoppingBag className="h-4 w-4" />}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-800">{a.title}</p>
+                      <p className="text-xs text-gray-400">{timeAgo(a.createdAt)}</p>
+                    </div>
+                    {typeof a.amount === "number" && (
+                      <span className="text-sm font-semibold text-gray-700">{formatNpr(a.amount)}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Package className="h-8 w-8 text-gray-200" />
+                <p className="mt-2 text-sm font-medium text-gray-600">No activity yet</p>
+                <p className="text-xs text-gray-400">Orders and leads will show up here.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Quick actions */}
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-gray-800">Quick actions</h2>
+            {QUICK_ACTIONS.map(({ label, desc, href, icon: Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/40"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900">{label}</p>
+                  <p className="text-xs text-gray-400">{desc}</p>
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-300" />
+              </Link>
+            ))}
           </div>
         </div>
       </div>

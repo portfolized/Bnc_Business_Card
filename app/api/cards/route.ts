@@ -29,7 +29,16 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json(cards);
+  // A card is a "real" NFC card once it has a placed (non-DRAFT) order; otherwise
+  // it's a demo card the user can still edit. Flag each card accordingly.
+  const placed = await prisma.order.findMany({
+    where: { userId: session.user.id, status: { not: "DRAFT" }, profileId: { not: null } },
+    select: { profileId: true },
+    distinct: ["profileId"],
+  });
+  const orderedIds = new Set(placed.map((o) => o.profileId));
+
+  return NextResponse.json(cards.map((c) => ({ ...c, ordered: orderedIds.has(c.id) })));
 }
 
 export async function POST(req: NextRequest) {

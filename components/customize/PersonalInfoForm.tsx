@@ -7,6 +7,7 @@ import {
   Briefcase,
   Phone,
   MapPin,
+  AlignLeft,
   ShoppingCart,
   Loader2,
 } from "lucide-react";
@@ -17,6 +18,8 @@ import type { PersonalInfo } from "./types";
 type PersonalInfoFormProps = {
   info: PersonalInfo;
   onChange: (field: keyof PersonalInfo, value: string) => void;
+  bio: string;
+  onBioChange: (value: string) => void;
   frontLogoUrl: string | null;
   backLogoUrl: string | null;
   onFrontLogoChange: (url: string | null) => void;
@@ -57,6 +60,8 @@ function TextInput({
 export default function PersonalInfoForm({
   info,
   onChange,
+  bio,
+  onBioChange,
   frontLogoUrl,
   backLogoUrl,
   onFrontLogoChange,
@@ -84,7 +89,7 @@ export default function PersonalInfoForm({
             <TextInput
               value={info.role}
               onChange={(v) => onChange("role", v)}
-              placeholder="CEO, Zalient"
+              placeholder="CEO, BNC"
             />
           </div>
         </div>
@@ -124,6 +129,17 @@ export default function PersonalInfoForm({
               placeholder="Enter Your Address"
             />
           </div>
+        </div>
+
+        <div>
+          <FieldLabel icon={AlignLeft} label="Description" />
+          <textarea
+            value={bio}
+            onChange={(e) => onBioChange(e.target.value)}
+            rows={3}
+            placeholder="A short bio shown on your public profile page."
+            className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/10"
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

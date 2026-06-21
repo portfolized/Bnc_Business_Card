@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Globe, Plus, Check, ExternalLink } from "lucide-react";
 
 type RuleState = boolean | null;
 
@@ -18,7 +19,7 @@ function RuleDot({ ok, children }: { ok: RuleState; children: React.ReactNode })
   );
 }
 
-type Card = { id: string; label: string; slug: string | null };
+type Card = { id: string; label: string; slug: string | null; ordered?: boolean };
 
 export default function DomainPage() {
   const [username, setUsername] = useState("");
@@ -29,12 +30,34 @@ export default function DomainPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [cardId, setCardId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Async availability result, tagged with the slug it applies to so stale
+  // responses are ignored. The "empty / invalid / checking" states are derived
+  // during render (see `availability` below) rather than stored.
+  const [remoteCheck, setRemoteCheck] =
+    useState<{ slug: string; status: "available" | "taken" | "own" } | null>(null);
 
   const MAX_DOMAINS = 10;
-  const domainsUsed = cards.filter((c) => c.slug).length;
+  const claimedCards = cards.filter((c) => c.slug);
+  const domainsUsed = claimedCards.length;
+  // 10 slots: claimed domains first, then `null` placeholders for the rest.
+  const slots: (Card | null)[] = Array.from({ length: MAX_DOMAINS }, (_, i) => claimedCards[i] ?? null);
+  const domainOptionLabel = (c: Card) =>
+    `${c.slug ? `/profile/${c.slug}` : c.label}${c.ordered ? " · NFC" : " · demo"}`;
 
   const slug = username.toLowerCase().replace(/[^a-z0-9_]/g, "");
   const previewSlug = slug || "yourname";
+  const slugValid = slug.length >= 3 && slug.length <= 30 && /^[a-z0-9_]+$/.test(slug);
+
+  // Availability is derived, not stored: this keeps all the synchronous states
+  // out of the effect (which would otherwise trigger cascading renders).
+  const availability: "checking" | "available" | "taken" | "invalid" | "own" | null =
+    !slug
+      ? null
+      : !slugValid
+      ? "invalid"
+      : remoteCheck?.slug === slug
+      ? remoteCheck.status
+      : "checking";
 
   const rules: Record<string, RuleState> = username
     ? {
@@ -86,6 +109,34 @@ export default function DomainPage() {
     return () => { cancelled = true; };
   }, [cardId]);
 
+  // Live availability check (debounced). Only valid slugs hit the network, and
+  // setState happens solely inside the deferred callback — never synchronously
+  // in the effect body — so it doesn't trigger cascading renders.
+  useEffect(() => {
+    if (!slugValid) return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/domain/check?slug=${encodeURIComponent(slug)}${cardId ? `&profileId=${cardId}` : ""}`
+        );
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setRemoteCheck({
+          slug,
+          status: data.available ? (data.reason === "own" ? "own" : "available") : "taken",
+        });
+      } catch {
+        // ignore — derived availability falls back to "checking"
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [slug, slugValid, cardId]);
+
   const handleSave = async () => {
     setError("");
     if (!username || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -114,9 +165,14 @@ export default function DomainPage() {
     }
   };
 
-  // Create a new card (unlimited). A domain (slug) is only claimed on save.
-  const handleCreateCard = async () => {
+  // Claim one of the 10 domain slots: create a new (demo) card, then let the
+  // user reserve its username below. A slot is only "used" once a slug is saved.
+  const handleCreateDomain = async () => {
     setError("");
+    if (domainsUsed >= MAX_DOMAINS) {
+      setError(`You can hold up to ${MAX_DOMAINS} domains. Free one up first.`);
+      return;
+    }
     setCreating(true);
     try {
       const res = await fetch("/api/cards", {
@@ -126,7 +182,7 @@ export default function DomainPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setCards((prev) => [...prev, { id: data.id, label: data.label, slug: data.slug ?? null }]);
+        setCards((prev) => [...prev, { id: data.id, label: data.label, slug: data.slug ?? null, ordered: false }]);
         setCardId(data.id);
         setUsername("");
         setSaved(false);
@@ -141,7 +197,7 @@ export default function DomainPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7FA] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-b from-[#F7F7FA] to-[#EDEEF5] flex flex-col">
       {/* Header */}
       <header className="h-14 bg-white border-b border-gray-200 flex items-center px-6 gap-3">
         <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
@@ -179,10 +235,85 @@ export default function DomainPage() {
           </div>
         </div>
 
+        {/* Domain slots — 10 per user. Claimed domains are reserved to you and
+            cannot be used by anyone else. */}
+        <div className="w-full max-w-3xl mb-5">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="font-semibold text-[15px] text-gray-900">Your domains</p>
+                <p className="text-[12px] text-gray-400">Each claimed domain is reserved only to you</p>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-[20px] font-bold leading-none text-gray-900">{domainsUsed}</span>
+                <span className="text-[13px] font-medium text-gray-400">/ {MAX_DOMAINS} used</span>
+              </div>
+            </div>
+
+            {/* Usage progress */}
+            <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-500"
+                style={{ width: `${(domainsUsed / MAX_DOMAINS) * 100}%` }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+              {slots.map((slot, i) =>
+                slot ? (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => setCardId(slot.id)}
+                    className={`group relative flex min-h-[72px] flex-col justify-between gap-2 rounded-xl border p-3 text-left transition-all duration-150 ${
+                      cardId === slot.id
+                        ? "border-indigo-500 bg-indigo-50/60 shadow-sm ring-2 ring-indigo-100"
+                        : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                          slot.ordered ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                        }`}
+                      >
+                        {slot.ordered ? "NFC" : "Demo"}
+                      </span>
+                      {cardId === slot.id && (
+                        <span className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-white">
+                          <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <Globe className={`h-3.5 w-3.5 shrink-0 ${cardId === slot.id ? "text-indigo-500" : "text-gray-400"}`} />
+                      <span className="truncate text-[12px] font-semibold text-gray-800">/{slot.slug}</span>
+                    </div>
+                  </button>
+                ) : (
+                  <button
+                    key={`empty-${i}`}
+                    type="button"
+                    onClick={handleCreateDomain}
+                    disabled={creating}
+                    title="Reserve this domain slot"
+                    className="group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-300 p-3 text-[11px] font-medium text-gray-400 transition-all duration-150 hover:-translate-y-0.5 hover:border-indigo-400 hover:bg-indigo-50/40 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-400 transition-colors group-hover:bg-indigo-100 group-hover:text-indigo-600">
+                      <Plus className="h-4 w-4" strokeWidth={2.5} />
+                    </span>
+                    Available
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-3xl">
           {/* Left — Configuration */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#534AB7" strokeWidth="2">
@@ -198,39 +329,50 @@ export default function DomainPage() {
             <div className="mb-4">
               <div className="mb-1.5 flex items-center justify-between">
                 <label className="block text-[13px] text-gray-500">
-                  Card / Domain <span className="text-gray-400">· {domainsUsed}/{MAX_DOMAINS} domains used</span>
+                  Domain <span className="text-gray-400">· {domainsUsed}/{MAX_DOMAINS} used</span>
                 </label>
                 <button
                   type="button"
-                  onClick={handleCreateCard}
-                  disabled={creating}
+                  onClick={handleCreateDomain}
+                  disabled={creating || domainsUsed >= MAX_DOMAINS}
                   className="text-[12px] font-medium text-indigo-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-300"
                 >
-                  {creating ? "Adding…" : "+ New card"}
+                  {creating ? "Adding…" : "+ New domain"}
                 </button>
               </div>
               {cards.length > 0 ? (
                 <select
                   value={cardId ?? ""}
-                  onChange={(e) => setCardId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 h-10 text-[14px] text-gray-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  disabled={creating}
+                  onChange={(e) => {
+                    if (e.target.value === "__new__") handleCreateDomain();
+                    else setCardId(e.target.value);
+                  }}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 h-10 text-[14px] text-gray-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:opacity-60"
                 >
                   {cards.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.label}{c.slug ? ` (/profile/${c.slug})` : " — no domain yet"}
+                      {domainOptionLabel(c)}
                     </option>
                   ))}
+                  {domainsUsed < MAX_DOMAINS && <option value="__new__">+ New domain</option>}
                 </select>
               ) : (
                 <p className="rounded-lg border border-dashed border-gray-200 px-3 py-2.5 text-[13px] text-gray-400">
-                  No cards yet — click “New domain” to reserve one, or place an order.
+                  No domains yet — click “+ New domain” to reserve one, or place an order.
                 </p>
               )}
             </div>
 
             <label className="block text-[13px] text-gray-500 mb-1.5">Username</label>
             <div className="flex gap-2 items-center">
-              <div className={`flex flex-1 items-center border rounded-lg overflow-hidden bg-white transition-all duration-150 ${username ? "border-indigo-400 ring-2 ring-indigo-100" : "border-gray-200"}`}>
+              <div className={`flex flex-1 items-center border rounded-lg overflow-hidden bg-white transition-all duration-150 ${
+                availability === "available"
+                  ? "border-emerald-400 ring-2 ring-emerald-100"
+                  : availability === "taken" || availability === "invalid"
+                  ? "border-red-300 ring-2 ring-red-100"
+                  : username ? "border-indigo-400 ring-2 ring-indigo-100" : "border-gray-200"
+              }`}>
                 <span className="px-3 h-10 flex items-center text-[13px] text-gray-400 bg-gray-50 border-r border-gray-200 whitespace-nowrap">
                   /profile/
                 </span>
@@ -243,11 +385,27 @@ export default function DomainPage() {
                   placeholder={loading ? "Loading..." : "yourname"}
                   className="flex-1 h-10 px-3 text-[14px] text-gray-800 outline-none bg-transparent placeholder-gray-300 disabled:opacity-50"
                 />
+                {availability === "checking" && (
+                  <svg className="animate-spin h-3.5 w-3.5 mr-3 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                )}
+                {(availability === "available" || availability === "own") && (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={availability === "own" ? "#6366f1" : "#10b981"} strokeWidth="3" className="mr-3 shrink-0">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+                {availability === "taken" && (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="3" className="mr-3 shrink-0">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                )}
               </div>
               <button
                 onClick={handleSave}
-                disabled={saving || loading}
-                className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[14px] font-medium rounded-lg transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60"
+                disabled={saving || loading || availability === "checking" || availability === "taken" || availability === "invalid"}
+                className="h-10 px-5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-[14px] font-medium rounded-lg transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {saving ? (
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -277,12 +435,27 @@ export default function DomainPage() {
                 <Link
                   href={`/profile/${slug}`}
                   target="_blank"
-                  className="text-[12px] text-indigo-600 hover:underline whitespace-nowrap"
+                  className="flex items-center gap-1 text-[12px] font-medium text-indigo-600 hover:underline whitespace-nowrap"
                 >
-                  View live
+                  View live <ExternalLink className="h-3 w-3" />
                 </Link>
               )}
             </div>
+
+            {/* Live availability (before save) */}
+            {!error && !saved && availability && availability !== "checking" && (
+              <p className={`mt-2.5 text-[13px] ${
+                availability === "available" ? "text-emerald-600"
+                : availability === "own" ? "text-indigo-600"
+                : availability === "taken" ? "text-red-500"
+                : "text-amber-600"
+              }`}>
+                {availability === "available" && <>✓ <span className="font-mono">/profile/{slug}</span> is available</>}
+                {availability === "own" && <>This is your current username.</>}
+                {availability === "taken" && <>That username is already taken — try another.</>}
+                {availability === "invalid" && <>Username must be 3–30 characters, letters/numbers/underscores only.</>}
+              </p>
+            )}
 
             {/* Status messages */}
             {error && <p className="mt-2.5 text-[13px] text-red-500">{error}</p>}
@@ -305,7 +478,7 @@ export default function DomainPage() {
           </div>
 
           {/* Right — How it works */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2">

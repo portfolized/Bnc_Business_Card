@@ -46,6 +46,9 @@ export async function GET(req: NextRequest) {
     cardTemplate: profile.cardTemplate,
     headline: profile.headline,
     skills: profile.skills,
+    greeting: profile.greeting,
+    ctaPrimary: profile.ctaPrimary,
+    ctaSecondary: profile.ctaSecondary,
   });
 }
 
@@ -71,6 +74,9 @@ export async function PUT(req: NextRequest) {
     cardTemplate,
     headline,
     skills,
+    greeting,
+    ctaPrimary,
+    ctaSecondary,
   } = body;
 
   const profile = await resolveProfile(session.user.id, profileId);
@@ -91,6 +97,9 @@ export async function PUT(req: NextRequest) {
       cardTemplate: cardTemplate ?? profile.cardTemplate,
       headline: headline !== undefined ? headline : profile.headline,
       skills: skills !== undefined ? skills : profile.skills,
+      greeting: greeting !== undefined ? greeting : profile.greeting,
+      ctaPrimary: ctaPrimary !== undefined ? ctaPrimary : profile.ctaPrimary,
+      ctaSecondary: ctaSecondary !== undefined ? ctaSecondary : profile.ctaSecondary,
     },
   });
 

@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { CardType, VipTier } from "@/lib/currency";
 
 export type CardSide = "front" | "back";
 
@@ -37,14 +38,18 @@ export const PENDING_CARD_KEY = "bnc:pending-card";
 
 export type PendingCard = {
   info: PersonalInfo;
-  frontImageUrl: string | null;
-  backImageUrl: string | null;
+  bio?: string;
   cardTemplate: string;
+  cardType?: CardType;
+  cardTier?: VipTier;
+  quantity?: number;
+  qrEnabled?: boolean;
+  slug?: string;
 };
 
 export const DEFAULT_PERSONAL_INFO: PersonalInfo = {
   fullName: "Full Name",
-  role: "CEO, Zalient",
+  role: "CEO, BNC",
   email: "example@example.com",
   website: "https://samratsapkota.com.np",
   phone: "+977 9800000001",

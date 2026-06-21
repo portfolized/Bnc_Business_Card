@@ -5,9 +5,6 @@ import {
   MapPin,
   Contact,
   ArrowUpRight,
-  Code2,
-  Briefcase,
-  Share2,
   Sparkles,
   Star,
 } from "lucide-react";
@@ -26,7 +23,14 @@ export type Profile = {
   accent: string;
   headline: string;
   skills: string;
+  greeting: string;
+  ctaPrimary: string;
+  ctaSecondary: string;
 };
+
+// Shared fallbacks so every template renders the same editable fields and never
+// shows hardcoded copy. A blank field falls back to a sensible default.
+const txt = (value: string, fallback: string) => (value.trim() ? value : fallback);
 
 export type TemplateProps = { profile: Profile };
 
@@ -89,30 +93,91 @@ export function Avatar({ profile, size, ring }: { profile: Profile; size: number
   );
 }
 
+// Skills as a list, with a light default so the slot is always visible.
+function skillsOf(profile: Profile) {
+  const arr = profile.skills.split(",").map((s) => s.trim()).filter(Boolean);
+  return arr.length ? arr : ["Strategy", "Design", "Growth", "Leadership"];
+}
+
+// Contact items shared by every template, so the data shown is identical across
+// all of them (only the styling differs per template).
+function ContactItems({ profile, iconColor }: { profile: Profile; iconColor?: string }) {
+  const items: [typeof Mail, string][] = [
+    [Mail, profile.email],
+    [Phone, profile.phone],
+    [MapPin, profile.location],
+    [Globe, host(profile.website)],
+  ];
+  return (
+    <>
+      {items.map(([Icon, value], i) =>
+        value ? (
+          <span key={i} className="flex items-center gap-2">
+            <Icon className="h-5 w-5 shrink-0" style={iconColor ? { color: iconColor } : undefined} />
+            <span className="truncate">{value}</span>
+          </span>
+        ) : null
+      )}
+    </>
+  );
+}
+
+// Skill chips shared by every template (content identical, chip style varies).
+function SkillChips({
+  profile,
+  className = "flex flex-wrap justify-center gap-2",
+  chipClassName = "",
+  chipStyle,
+}: {
+  profile: Profile;
+  className?: string;
+  chipClassName?: string;
+  chipStyle?: React.CSSProperties;
+}) {
+  return (
+    <div className={className}>
+      {skillsOf(profile).map((s, i) => (
+        <span key={i} className={`rounded-lg px-3.5 py-1.5 text-base font-medium ${chipClassName}`} style={chipStyle}>
+          {s}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ─── Templates ────────────────────────────────────────────────────────────────
+// Every template renders the SAME editable content model — greeting, name, role,
+// headline, bio, skills, the four contact fields and two CTAs — so the data is
+// consistent and nothing is hardcoded; only the visual styling differs.
 
 function ClassicTemplate({ profile }: TemplateProps) {
   return (
     <div className="flex h-full w-full flex-col bg-white">
       <div
-        className="h-64 w-full"
+        className="h-40 w-full shrink-0"
         style={{ background: `linear-gradient(135deg, ${profile.accent}55, #c4b5fd 50%, #ddd6fe)` }}
       />
-      <div className="-mt-20 flex flex-1 flex-col items-center px-12 pb-12 text-center">
-        <Avatar profile={profile} size={150} ring="#ffffff" />
-        <h1 className="mt-6 text-5xl font-extrabold text-gray-900">{profile.fullName}</h1>
-        <p className="mt-2 text-2xl text-gray-500">{profile.role}</p>
-        <p className="mt-6 max-w-xl text-xl leading-relaxed text-gray-600">{profile.bio}</p>
-        <div className="mt-7 space-y-3 text-lg" style={{ color: profile.accent }}>
-          <p className="flex items-center justify-center gap-2"><Mail className="h-5 w-5" /> {profile.email}</p>
-          <p className="flex items-center justify-center gap-2"><Phone className="h-5 w-5" /> {profile.phone}</p>
+      <div className="-mt-16 flex flex-1 flex-col items-center px-16 pb-10 text-center">
+        <Avatar profile={profile} size={120} ring="#ffffff" />
+        <p className="mt-3 text-sm font-bold uppercase tracking-[0.2em]" style={{ color: profile.accent }}>
+          {txt(profile.greeting, "Hello, I am")}
+        </p>
+        <h1 className="text-5xl font-extrabold text-gray-900">{profile.fullName}</h1>
+        <p className="mt-1 text-2xl text-gray-500">{profile.role}</p>
+        <p className="mt-3 max-w-2xl text-xl font-semibold text-gray-700">{txt(profile.headline, "Crafting work that speaks for itself.")}</p>
+        <p className="mt-2 max-w-2xl text-base leading-relaxed text-gray-500">{profile.bio}</p>
+        <SkillChips profile={profile} className="mt-4 flex flex-wrap justify-center gap-2" chipStyle={{ backgroundColor: `${profile.accent}14`, color: profile.accent }} />
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-base text-gray-600">
+          <ContactItems profile={profile} iconColor={profile.accent} />
         </div>
-        <button
-          className="mt-9 flex items-center gap-3 rounded-2xl px-9 py-4 text-xl font-semibold text-white shadow-lg"
-          style={{ backgroundColor: profile.accent }}
-        >
-          <Contact className="h-6 w-6" /> Add to Contacts
-        </button>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <button className="flex items-center gap-2 rounded-2xl px-7 py-3 text-lg font-semibold text-white shadow-lg" style={{ backgroundColor: profile.accent }}>
+            <Contact className="h-5 w-5" /> {txt(profile.ctaPrimary, "Add to Contacts")}
+          </button>
+          <button className="rounded-2xl border-2 px-7 py-3 text-lg font-semibold" style={{ borderColor: `${profile.accent}55`, color: profile.accent }}>
+            {txt(profile.ctaSecondary, "View work")}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -120,32 +185,36 @@ function ClassicTemplate({ profile }: TemplateProps) {
 
 function ModernTemplate({ profile }: TemplateProps) {
   return (
-    <div className="flex h-full w-full items-center bg-gray-50 px-20">
+    <div className="flex h-full w-full items-center gap-12 bg-gray-50 px-16">
       <div className="flex-1">
         <span
           className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-base font-semibold"
           style={{ backgroundColor: `${profile.accent}1a`, color: profile.accent }}
         >
-          <Sparkles className="h-4 w-4" /> {profile.role}
+          <Sparkles className="h-4 w-4" /> {txt(profile.greeting, profile.role)}
         </span>
-        <h1 className="mt-6 text-7xl font-black leading-[1.05] tracking-tight text-gray-900">
-          {profile.headline || "Building Scalable & Engaging Web."}
+        <h1 className="mt-5 text-6xl font-black leading-[1.05] tracking-tight text-gray-900">
+          {txt(profile.headline, "Building Scalable & Engaging Web.")}
         </h1>
-        <p className="mt-7 max-w-md text-2xl leading-relaxed text-gray-500">{profile.bio}</p>
-        <div className="mt-9 flex gap-4">
-          <button className="rounded-xl px-8 py-4 text-xl font-semibold text-white shadow-lg" style={{ backgroundColor: profile.accent }}>
-            Get in touch
+        <p className="mt-2 text-2xl font-semibold text-gray-400">{profile.role}</p>
+        <p className="mt-5 max-w-md text-xl leading-relaxed text-gray-500">{profile.bio}</p>
+        <SkillChips profile={profile} className="mt-5 flex flex-wrap gap-2" chipClassName="shadow-sm" chipStyle={{ backgroundColor: "#fff", color: profile.accent }} />
+        <div className="mt-7 flex gap-4">
+          <button className="rounded-xl px-7 py-3.5 text-lg font-semibold text-white shadow-lg" style={{ backgroundColor: profile.accent }}>
+            {txt(profile.ctaPrimary, "Get in touch")}
           </button>
-          <button className="rounded-xl border-2 border-gray-300 px-8 py-4 text-xl font-semibold text-gray-700">
-            View work
+          <button className="rounded-xl border-2 border-gray-300 px-7 py-3.5 text-lg font-semibold text-gray-700">
+            {txt(profile.ctaSecondary, "View work")}
           </button>
         </div>
       </div>
-      <div className="relative ml-12 flex flex-col items-center">
-        <Avatar profile={profile} size={300} ring="#ffffff" />
-        <div className="mt-6 rounded-2xl bg-white px-7 py-4 text-center shadow-xl">
-          <p className="text-2xl font-bold text-gray-900">{profile.fullName}</p>
-          <p className="text-lg text-gray-400">{host(profile.website)}</p>
+      <div className="flex w-[320px] shrink-0 flex-col items-center">
+        <Avatar profile={profile} size={230} ring="#ffffff" />
+        <div className="mt-5 w-full rounded-2xl bg-white px-6 py-5 shadow-xl">
+          <p className="text-center text-2xl font-bold text-gray-900">{profile.fullName}</p>
+          <div className="mt-3 space-y-1.5 text-sm text-gray-500">
+            <ContactItems profile={profile} iconColor={profile.accent} />
+          </div>
         </div>
       </div>
     </div>
@@ -155,26 +224,22 @@ function ModernTemplate({ profile }: TemplateProps) {
 function MinimalistTemplate({ profile }: TemplateProps) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center bg-white px-24 text-center">
-      <Avatar profile={profile} size={96} ring="#f3f4f6" />
-      <h1 className="mt-10 max-w-3xl text-6xl font-bold leading-tight tracking-tight text-gray-900">
-        {profile.headline ? (
-          profile.headline
-        ) : (
-          <>I help startups launch{" "}<span style={{ color: profile.accent }}>fast,</span> scalable products.</>
-        )}
+      <Avatar profile={profile} size={90} ring="#f3f4f6" />
+      <p className="mt-5 text-sm uppercase tracking-[0.3em] text-gray-400">{txt(profile.greeting, profile.fullName)}</p>
+      <h1 className="mt-3 max-w-3xl text-5xl font-bold leading-tight tracking-tight text-gray-900">
+        {txt(profile.headline, "I help startups launch fast, scalable products.")}
       </h1>
-      <p className="mt-8 text-2xl uppercase tracking-widest text-gray-400">
+      <p className="mt-4 text-xl uppercase tracking-widest text-gray-400">
         {profile.fullName} &mdash; {profile.role}
       </p>
-      <div className="mt-12 flex items-center gap-10 text-xl text-gray-500">
-        <span className="flex items-center gap-2"><Mail className="h-5 w-5" /> {profile.email}</span>
-        <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
-        <span className="flex items-center gap-2"><Globe className="h-5 w-5" /> {host(profile.website)}</span>
+      <p className="mt-4 max-w-xl text-lg leading-relaxed text-gray-500">{profile.bio}</p>
+      <SkillChips profile={profile} className="mt-5 flex flex-wrap justify-center gap-2" chipClassName="border border-gray-200" chipStyle={{ color: "#6b7280" }} />
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-base text-gray-500">
+        <ContactItems profile={profile} />
       </div>
-      <div className="mt-14 flex items-center gap-12 opacity-40">
-        {["ACME", "NOVA", "PIXEL", "VERTEX", "ORBIT"].map((b) => (
-          <span key={b} className="text-2xl font-black tracking-widest text-gray-400">{b}</span>
-        ))}
+      <div className="mt-6 flex gap-3">
+        <button className="rounded-full px-7 py-3 text-base font-semibold text-white" style={{ backgroundColor: profile.accent }}>{txt(profile.ctaPrimary, "Get in touch")}</button>
+        <button className="rounded-full border border-gray-300 px-7 py-3 text-base font-semibold text-gray-700">{txt(profile.ctaSecondary, "View work")}</button>
       </div>
     </div>
   );
@@ -187,25 +252,23 @@ function PrimeTemplate({ profile }: TemplateProps) {
         className="absolute inset-0"
         style={{ background: `radial-gradient(circle at 30% 20%, ${profile.accent}66, transparent 55%), radial-gradient(circle at 80% 80%, #1e293b, #0f172a)` }}
       />
-      <div className="relative flex h-full flex-col justify-center px-24">
-        <p className="text-2xl font-medium text-gray-400">Hello, I am</p>
-        <h1 className="mt-3 text-8xl font-black tracking-tight text-white">{profile.fullName}</h1>
-        <p className="mt-4 text-3xl font-semibold" style={{ color: profile.accent }}>{profile.role}</p>
-        <p className="mt-8 max-w-xl text-2xl leading-relaxed text-gray-300">{profile.bio}</p>
-        <div className="mt-10 flex gap-4">
-          <button className="rounded-full px-9 py-4 text-xl font-semibold text-white shadow-xl" style={{ backgroundColor: profile.accent }}>
-            Let&apos;s talk
-          </button>
-          <button className="rounded-full border border-white/30 px-9 py-4 text-xl font-semibold text-white backdrop-blur">
-            Download CV
-          </button>
+      <div className="relative flex h-full flex-col justify-center px-20">
+        <p className="text-xl font-medium text-gray-400">{txt(profile.greeting, "Hello, I am")}</p>
+        <h1 className="mt-2 text-7xl font-black tracking-tight text-white">{profile.fullName}</h1>
+        <p className="mt-3 text-3xl font-semibold" style={{ color: profile.accent }}>{profile.role}</p>
+        <p className="mt-4 max-w-2xl text-2xl font-medium text-gray-200">{txt(profile.headline, "Designing bold digital experiences.")}</p>
+        <p className="mt-4 max-w-xl text-xl leading-relaxed text-gray-400">{profile.bio}</p>
+        <SkillChips profile={profile} className="mt-5 flex flex-wrap gap-2" chipStyle={{ backgroundColor: "rgba(255,255,255,0.08)", color: "#fff" }} />
+        <div className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-2 text-lg text-gray-300">
+          <ContactItems profile={profile} iconColor={profile.accent} />
         </div>
-        <div className="mt-12 flex gap-5 text-white/70">
-          {[Code2, Briefcase, Share2].map((Icon, i) => (
-            <span key={i} className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20">
-              <Icon className="h-5 w-5" />
-            </span>
-          ))}
+        <div className="mt-7 flex gap-4">
+          <button className="rounded-full px-8 py-3.5 text-lg font-semibold text-white shadow-xl" style={{ backgroundColor: profile.accent }}>
+            {txt(profile.ctaPrimary, "Let's talk")}
+          </button>
+          <button className="rounded-full border border-white/30 px-8 py-3.5 text-lg font-semibold text-white backdrop-blur">
+            {txt(profile.ctaSecondary, "Download CV")}
+          </button>
         </div>
       </div>
     </div>
@@ -214,26 +277,29 @@ function PrimeTemplate({ profile }: TemplateProps) {
 
 function MidnightTemplate({ profile }: TemplateProps) {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[#0a0a12] px-20">
+    <div className="flex h-full w-full items-center justify-center bg-[#0a0a12] px-16">
       <div
-        className="relative w-full max-w-3xl rounded-3xl border border-white/10 bg-white/3 p-14 text-center backdrop-blur"
+        className="relative w-full max-w-3xl rounded-3xl border border-white/10 bg-white/[0.03] p-12 text-center backdrop-blur"
         style={{ boxShadow: `0 0 80px ${profile.accent}33` }}
       >
-        <div className="flex justify-center"><Avatar profile={profile} size={140} ring={profile.accent} /></div>
-        <h1 className="mt-7 text-5xl font-extrabold text-white">{profile.fullName}</h1>
-        <p className="mt-2 text-xl font-semibold uppercase tracking-widest" style={{ color: profile.accent }}>{profile.role}</p>
-        <p className="mt-6 text-xl leading-relaxed text-gray-400">{profile.bio}</p>
-        <div className="mt-8 grid grid-cols-2 gap-4 text-left text-lg text-gray-300">
-          <span className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-5 py-3">
-            <Mail className="h-5 w-5" style={{ color: profile.accent }} /> {profile.email}
-          </span>
-          <span className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-5 py-3">
-            <Phone className="h-5 w-5" style={{ color: profile.accent }} /> {profile.phone}
-          </span>
+        <div className="flex justify-center"><Avatar profile={profile} size={108} ring={profile.accent} /></div>
+        <p className="mt-4 text-sm font-semibold uppercase tracking-[0.2em]" style={{ color: profile.accent }}>{txt(profile.greeting, "Hello, I am")}</p>
+        <h1 className="text-4xl font-extrabold text-white">{profile.fullName}</h1>
+        <p className="mt-1 text-lg font-semibold uppercase tracking-widest text-gray-400">{profile.role}</p>
+        <p className="mt-3 text-lg font-medium text-gray-200">{txt(profile.headline, "Crafting standout brands.")}</p>
+        <p className="mt-2 text-base leading-relaxed text-gray-400">{profile.bio}</p>
+        <SkillChips profile={profile} className="mt-4 flex flex-wrap justify-center gap-2" chipClassName="border border-white/10" chipStyle={{ backgroundColor: "rgba(255,255,255,0.05)", color: "#d1d5db" }} />
+        <div className="mt-4 grid grid-cols-2 gap-3 text-left text-base text-gray-300">
+          <ContactItems profile={profile} iconColor={profile.accent} />
         </div>
-        <button className="mt-9 w-full rounded-2xl py-4 text-xl font-bold text-white" style={{ backgroundColor: profile.accent }}>
-          Connect with me
-        </button>
+        <div className="mt-5 flex justify-center gap-3">
+          <button className="rounded-2xl px-7 py-3 text-base font-bold text-white" style={{ backgroundColor: profile.accent }}>
+            {txt(profile.ctaPrimary, "Connect with me")}
+          </button>
+          <button className="rounded-2xl border border-white/20 px-7 py-3 text-base font-bold text-white">
+            {txt(profile.ctaSecondary, "View work")}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -245,52 +311,50 @@ function AuroraTemplate({ profile }: TemplateProps) {
       className="flex h-full w-full items-center justify-center px-20"
       style={{ background: `linear-gradient(135deg, ${profile.accent}, #ec4899 55%, #f59e0b)` }}
     >
-      <div className="w-full max-w-3xl rounded-4xl border border-white/40 bg-white/20 p-14 text-center text-white shadow-2xl backdrop-blur-xl">
-        <div className="flex justify-center"><Avatar profile={profile} size={140} ring="#ffffff" /></div>
-        <h1 className="mt-7 text-6xl font-black drop-shadow">{profile.fullName}</h1>
-        <p className="mt-2 text-2xl font-medium text-white/90">{profile.role}</p>
-        <p className="mt-6 text-2xl leading-relaxed text-white/90">{profile.bio}</p>
-        <div className="mt-9 flex justify-center gap-4">
-          <button className="rounded-full bg-white px-9 py-4 text-xl font-bold text-gray-900 shadow-lg">Hire me</button>
-          <button className="rounded-full border-2 border-white px-9 py-4 text-xl font-bold text-white">Portfolio</button>
+      <div className="w-full max-w-3xl rounded-[2rem] border border-white/40 bg-white/20 p-12 text-center text-white shadow-2xl backdrop-blur-xl">
+        <div className="flex justify-center"><Avatar profile={profile} size={108} ring="#ffffff" /></div>
+        <p className="mt-4 text-sm font-bold uppercase tracking-[0.2em] text-white/90">{txt(profile.greeting, "Hello, I am")}</p>
+        <h1 className="text-5xl font-black drop-shadow">{profile.fullName}</h1>
+        <p className="mt-1 text-2xl font-medium text-white/90">{profile.role}</p>
+        <p className="mt-3 text-2xl font-semibold">{txt(profile.headline, "Let's make something vibrant.")}</p>
+        <p className="mt-2 text-lg leading-relaxed text-white/90">{profile.bio}</p>
+        <SkillChips profile={profile} className="mt-4 flex flex-wrap justify-center gap-2" chipStyle={{ backgroundColor: "rgba(255,255,255,0.25)", color: "#fff" }} />
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-base text-white/90">
+          <ContactItems profile={profile} />
         </div>
-        <p className="mt-8 flex items-center justify-center gap-2 text-lg text-white/80">
-          <Globe className="h-5 w-5" /> {host(profile.website)}
-        </p>
+        <div className="mt-5 flex justify-center gap-3">
+          <button className="rounded-full bg-white px-7 py-3 text-base font-bold text-gray-900 shadow-lg">{txt(profile.ctaPrimary, "Hire me")}</button>
+          <button className="rounded-full border-2 border-white px-7 py-3 text-base font-bold text-white">{txt(profile.ctaSecondary, "Portfolio")}</button>
+        </div>
       </div>
     </div>
   );
 }
 
 function CorporateTemplate({ profile }: TemplateProps) {
-  const skillList = profile.skills
-    ? profile.skills.split(",").map((s) => s.trim()).filter(Boolean)
-    : ["Strategy", "Leadership", "Product", "Growth", "Design"];
-
   return (
     <div className="flex h-full w-full bg-white">
-      <div className="flex w-[38%] flex-col items-center justify-center p-12 text-center text-white" style={{ backgroundColor: profile.accent }}>
-        <Avatar profile={profile} size={170} ring="#ffffff" />
-        <h1 className="mt-7 text-4xl font-extrabold">{profile.fullName}</h1>
-        <p className="mt-2 text-xl text-white/80">{profile.role}</p>
-        <div className="mt-10 w-full space-y-4 text-left text-lg">
-          <p className="flex items-center gap-3"><Mail className="h-5 w-5 shrink-0" /> <span className="truncate">{profile.email}</span></p>
-          <p className="flex items-center gap-3"><Phone className="h-5 w-5 shrink-0" /> {profile.phone}</p>
-          <p className="flex items-center gap-3"><MapPin className="h-5 w-5 shrink-0" /> {profile.location}</p>
+      <div className="flex w-[38%] flex-col items-center justify-center p-10 text-center text-white" style={{ backgroundColor: profile.accent }}>
+        <Avatar profile={profile} size={150} ring="#ffffff" />
+        <h1 className="mt-6 text-4xl font-extrabold">{profile.fullName}</h1>
+        <p className="mt-1.5 text-xl text-white/80">{profile.role}</p>
+        <div className="mt-8 w-full space-y-3 text-left text-base">
+          <ContactItems profile={profile} />
         </div>
       </div>
-      <div className="flex-1 p-14">
-        <h2 className="text-base font-bold uppercase tracking-widest text-gray-400">About</h2>
-        <p className="mt-4 text-2xl leading-relaxed text-gray-700">{profile.bio}</p>
-        <h2 className="mt-12 text-base font-bold uppercase tracking-widest text-gray-400">Expertise</h2>
-        <div className="mt-5 flex flex-wrap gap-3">
-          {skillList.map((s) => (
-            <span key={s} className="rounded-lg px-5 py-2.5 text-lg font-medium" style={{ backgroundColor: `${profile.accent}14`, color: profile.accent }}>{s}</span>
-          ))}
+      <div className="flex flex-1 flex-col justify-center p-12">
+        <p className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: profile.accent }}>{txt(profile.greeting, "About me")}</p>
+        <h2 className="mt-2 text-4xl font-extrabold leading-tight text-gray-900">{txt(profile.headline, "Driving results through strategy.")}</h2>
+        <p className="mt-4 text-xl leading-relaxed text-gray-600">{profile.bio}</p>
+        <SkillChips profile={profile} className="mt-6 flex flex-wrap gap-2.5" chipStyle={{ backgroundColor: `${profile.accent}14`, color: profile.accent }} />
+        <div className="mt-8 flex gap-3">
+          <button className="flex items-center gap-2 rounded-xl px-7 py-3.5 text-lg font-semibold text-white" style={{ backgroundColor: profile.accent }}>
+            {txt(profile.ctaPrimary, "Book a meeting")} <ArrowUpRight className="h-5 w-5" />
+          </button>
+          <button className="rounded-xl border-2 px-7 py-3.5 text-lg font-semibold" style={{ borderColor: `${profile.accent}55`, color: profile.accent }}>
+            {txt(profile.ctaSecondary, "View work")}
+          </button>
         </div>
-        <button className="mt-12 flex items-center gap-2 rounded-xl px-8 py-4 text-xl font-semibold text-white" style={{ backgroundColor: profile.accent }}>
-          Book a meeting <ArrowUpRight className="h-5 w-5" />
-        </button>
       </div>
     </div>
   );
@@ -302,25 +366,25 @@ function CreativeTemplate({ profile }: TemplateProps) {
       <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full" style={{ backgroundColor: `${profile.accent}33` }} />
       <div className="absolute -bottom-24 right-10 h-80 w-80 rotate-12 rounded-[3rem] bg-pink-200" />
       <div className="absolute right-40 top-16 h-16 w-16 rotate-45 bg-amber-300" />
-      <div className="relative flex h-full flex-col justify-center px-24">
-        <h1 className="text-8xl font-black leading-none text-gray-900">
-          {profile.headline ? (
-            <>{profile.headline}<br /><span style={{ color: profile.accent }}>{profile.fullName}.</span></>
-          ) : (
-            <>Hey, I&apos;m <br /><span style={{ color: profile.accent }}>{profile.fullName}.</span></>
-          )}
-        </h1>
-        <p className="mt-6 max-w-lg text-3xl font-medium text-gray-700">{profile.bio}</p>
-        <div className="mt-8 inline-flex w-fit items-center gap-3 rounded-2xl bg-gray-900 px-6 py-3 text-2xl font-bold text-white">
-          <Star className="h-6 w-6" style={{ color: profile.accent }} /> {profile.role}
+      <div className="relative flex h-full flex-col justify-center px-20">
+        <p className="text-2xl font-bold" style={{ color: profile.accent }}>{txt(profile.greeting, "Hey, I'm")}</p>
+        <h1 className="text-7xl font-black leading-none text-gray-900">{profile.fullName}.</h1>
+        <p className="mt-3 max-w-xl text-3xl font-bold text-gray-800">{txt(profile.headline, "I make brands unforgettable.")}</p>
+        <p className="mt-3 max-w-lg text-xl font-medium text-gray-700">{profile.bio}</p>
+        <div className="mt-4 inline-flex w-fit items-center gap-2 rounded-2xl bg-gray-900 px-5 py-2.5 text-xl font-bold text-white">
+          <Star className="h-5 w-5" style={{ color: profile.accent }} /> {profile.role}
         </div>
-        <div className="mt-10 flex gap-4 text-xl">
-          <button className="rounded-full px-9 py-4 font-bold text-white shadow-[6px_6px_0_0_#111]" style={{ backgroundColor: profile.accent }}>
-            Say hello
+        <SkillChips profile={profile} className="mt-4 flex flex-wrap gap-2" chipClassName="border-2 border-gray-900" chipStyle={{ backgroundColor: "#fff", color: "#374151" }} />
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-base font-semibold text-gray-700">
+          <ContactItems profile={profile} />
+        </div>
+        <div className="mt-5 flex gap-3 text-lg">
+          <button className="rounded-full px-8 py-3.5 font-bold text-white shadow-[5px_5px_0_0_#111]" style={{ backgroundColor: profile.accent }}>
+            {txt(profile.ctaPrimary, "Say hello")}
           </button>
-          <span className="flex items-center gap-2 px-4 py-4 font-semibold text-gray-700">
-            <Mail className="h-5 w-5" /> {profile.email}
-          </span>
+          <button className="rounded-full border-2 border-gray-900 px-8 py-3.5 font-bold text-gray-900">
+            {txt(profile.ctaSecondary, "Portfolio")}
+          </button>
         </div>
       </div>
     </div>
@@ -329,46 +393,70 @@ function CreativeTemplate({ profile }: TemplateProps) {
 
 function ElegantTemplate({ profile }: TemplateProps) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center bg-[#f8f5f0] px-24 text-center">
-      <div className="text-base font-semibold uppercase tracking-widest" style={{ color: profile.accent }}>
-        {profile.headline || "Portfolio"}
+    <div className="flex h-full w-full flex-col items-center justify-center bg-[#f8f5f0] px-20 text-center">
+      <p className="text-sm font-semibold uppercase tracking-[0.3em]" style={{ color: profile.accent }}>
+        {txt(profile.greeting, "Portfolio")}
+      </p>
+      <div className="my-5 h-px w-20" style={{ backgroundColor: profile.accent }} />
+      <h1 className="text-6xl font-light tracking-tight text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{profile.fullName}</h1>
+      <p className="mt-3 text-2xl italic text-gray-500" style={{ fontFamily: "Georgia, serif" }}>{profile.role}</p>
+      <p className="mt-4 max-w-2xl text-2xl font-light text-gray-700" style={{ fontFamily: "Georgia, serif" }}>{txt(profile.headline, "Timeless work, thoughtfully made.")}</p>
+      <p className="mt-3 max-w-xl text-lg leading-relaxed text-gray-600">{profile.bio}</p>
+      <SkillChips profile={profile} className="mt-5 flex flex-wrap justify-center gap-2" chipStyle={{ border: `1px solid ${profile.accent}55`, color: profile.accent }} />
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-base text-gray-600">
+        <ContactItems profile={profile} iconColor={profile.accent} />
       </div>
-      <div className="my-8 h-px w-24" style={{ backgroundColor: profile.accent }} />
-      <h1 className="text-7xl font-light tracking-tight text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{profile.fullName}</h1>
-      <p className="mt-4 text-3xl italic text-gray-500" style={{ fontFamily: "Georgia, serif" }}>{profile.role}</p>
-      <p className="mt-8 max-w-xl text-2xl leading-relaxed text-gray-600">{profile.bio}</p>
-      <div className="my-9 h-px w-24" style={{ backgroundColor: profile.accent }} />
-      <div className="flex items-center gap-10 text-xl text-gray-600">
-        <span className="flex items-center gap-2"><Mail className="h-5 w-5" style={{ color: profile.accent }} /> {profile.email}</span>
-        <span className="flex items-center gap-2"><Phone className="h-5 w-5" style={{ color: profile.accent }} /> {profile.phone}</span>
+      <div className="mt-6 flex gap-3">
+        <button className="border-2 px-9 py-3 text-base font-semibold uppercase tracking-widest" style={{ borderColor: profile.accent, color: profile.accent }}>
+          {txt(profile.ctaPrimary, "Get in touch")}
+        </button>
+        <button className="px-9 py-3 text-base font-semibold uppercase tracking-widest text-white" style={{ backgroundColor: profile.accent }}>
+          {txt(profile.ctaSecondary, "View work")}
+        </button>
       </div>
-      <button className="mt-10 border-2 px-12 py-4 text-lg font-semibold uppercase tracking-widest" style={{ borderColor: profile.accent, color: profile.accent }}>
-        Get in touch
-      </button>
     </div>
   );
 }
 
 function TechTemplate({ profile }: TemplateProps) {
+  const fields: [string, string][] = [
+    ["name", profile.fullName],
+    ["role", profile.role],
+    ["tagline", txt(profile.greeting, "Hello, I am")],
+    ["headline", txt(profile.headline, "I build fast, reliable software.")],
+    ["bio", profile.bio],
+    ["email", profile.email],
+    ["phone", profile.phone],
+    ["location", profile.location],
+    ["site", host(profile.website)],
+  ];
+  const firstName = profile.fullName.split(" ")[0]?.toLowerCase() || "me";
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[#0d1117] px-20 font-mono">
+    <div className="flex h-full w-full items-center justify-center bg-[#0d1117] px-16 font-mono">
       <div className="w-full max-w-3xl overflow-hidden rounded-xl border border-gray-700 bg-[#161b22] shadow-2xl">
         <div className="flex items-center gap-2 border-b border-gray-700 bg-[#0d1117] px-5 py-3">
-          <span className="h-3.5 w-3.5 rounded-full bg-red-500" />
-          <span className="h-3.5 w-3.5 rounded-full bg-yellow-500" />
-          <span className="h-3.5 w-3.5 rounded-full bg-green-500" />
-          <span className="ml-4 text-base text-gray-500">~/profile.ts</span>
+          <span className="h-3 w-3 rounded-full bg-red-500" />
+          <span className="h-3 w-3 rounded-full bg-yellow-500" />
+          <span className="h-3 w-3 rounded-full bg-green-500" />
+          <span className="ml-4 text-sm text-gray-500">~/profile.ts</span>
         </div>
-        <div className="space-y-2 p-10 text-2xl leading-relaxed">
-          <p><span className="text-purple-400">const</span> <span style={{ color: profile.accent }}>developer</span> <span className="text-gray-400">= {"{"}</span></p>
-          <p className="pl-8"><span className="text-sky-300">name</span><span className="text-gray-400">:</span> <span className="text-amber-300">&apos;{profile.fullName}&apos;</span><span className="text-gray-400">,</span></p>
-          <p className="pl-8"><span className="text-sky-300">role</span><span className="text-gray-400">:</span> <span className="text-amber-300">&apos;{profile.role}&apos;</span><span className="text-gray-400">,</span></p>
-          <p className="pl-8"><span className="text-sky-300">email</span><span className="text-gray-400">:</span> <span className="text-amber-300">&apos;{profile.email}&apos;</span><span className="text-gray-400">,</span></p>
-          <p className="pl-8"><span className="text-sky-300">site</span><span className="text-gray-400">:</span> <span className="text-amber-300">&apos;{host(profile.website)}&apos;</span><span className="text-gray-400">,</span></p>
+        <div className="space-y-1.5 p-8 text-lg leading-relaxed">
+          <p><span className="text-purple-400">const</span> <span style={{ color: profile.accent }}>profile</span> <span className="text-gray-400">= {"{"}</span></p>
+          {fields.map(([k, v]) => (
+            <p key={k} className="truncate pl-6">
+              <span className="text-sky-300">{k}</span><span className="text-gray-400">:</span> <span className="text-amber-300">&apos;{v}&apos;</span><span className="text-gray-400">,</span>
+            </p>
+          ))}
+          <p className="truncate pl-6">
+            <span className="text-sky-300">skills</span><span className="text-gray-400">: [</span>
+            <span className="text-amber-300">{skillsOf(profile).map((s) => `'${s}'`).join(", ")}</span>
+            <span className="text-gray-400">],</span>
+          </p>
           <p className="text-gray-400">{"}"}</p>
-          <p className="pt-4 text-gray-500">
-            <span className="text-green-400">$</span> hire {profile.fullName.split(" ")[0].toLowerCase()}
-            <span className="ml-1 inline-block h-6 w-3 animate-pulse align-middle" style={{ backgroundColor: profile.accent }} />
+          <p className="pt-3 text-gray-500">
+            <span className="text-green-400">$</span> {txt(profile.ctaPrimary, "hire")} {firstName}{" "}
+            <span className="text-gray-600">--{txt(profile.ctaSecondary, "portfolio")}</span>
+            <span className="ml-1 inline-block h-5 w-2.5 animate-pulse align-middle" style={{ backgroundColor: profile.accent }} />
           </p>
         </div>
       </div>
