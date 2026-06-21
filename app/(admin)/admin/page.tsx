@@ -160,7 +160,8 @@ export default async function AdminPage() {
         {s.latestOrders.length === 0 ? (
           <div className="py-14 text-center text-sm text-subtext">No orders yet.</div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm whitespace-nowrap">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-subtext">
                 <th className="px-5 py-3">Order</th>
@@ -191,6 +192,7 @@ export default async function AdminPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

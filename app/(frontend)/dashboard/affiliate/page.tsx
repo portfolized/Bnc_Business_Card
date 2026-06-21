@@ -124,7 +124,8 @@ export default function AffiliatePage() {
                 No referrals yet. Share your link to start earning.
               </div>
             ) : (
-              <table className="min-w-full text-sm">
+              <div className="overflow-x-auto">
+              <table className="min-w-full text-sm whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     <th className="px-5 py-3">Name</th>
@@ -144,6 +145,7 @@ export default function AffiliatePage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>
