@@ -38,6 +38,30 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
 };
 
+// The three payment states an admin can set (mirrors the payments API + page).
+const PAY_STATES = ["UNPAID", "PROCESSING", "PAID"] as const;
+type PayState = (typeof PAY_STATES)[number];
+
+const PAY_STYLES: Record<string, string> = {
+  PAID: "bg-green-50 text-green-700 border-green-200",
+  PROCESSING: "bg-amber-50 text-amber-700 border-amber-200",
+  UNPAID: "bg-gray-100 text-gray-600 border-gray-200",
+  // legacy values still render sensibly if any old rows exist
+  PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+  REJECTED: "bg-gray-100 text-gray-600 border-gray-200",
+};
+
+// Map any stored payment value (incl. legacy) onto one of the three states so
+// the dropdown always shows a valid selection.
+const toPayState = (s: string): PayState =>
+  s === "PAID" ? "PAID" : s === "PROCESSING" || s === "PENDING" ? "PROCESSING" : "UNPAID";
+
+const PAY_LABEL: Record<PayState, string> = {
+  UNPAID: "Unpaid",
+  PROCESSING: "Processing",
+  PAID: "Paid",
+};
+
 type ShippingAddress = { name?: string; email?: string; phone?: string; address?: string };
 
 type AdminOrder = {
@@ -154,6 +178,37 @@ function StatusSelect({
       >
         {STATUSES.map((s) => (
           <option key={s} value={s}>{s.charAt(0) + s.slice(1).toLowerCase()}</option>
+        ))}
+      </select>
+      {saving ? (
+        <Loader2 className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 animate-spin opacity-70" />
+      ) : (
+        <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 opacity-60" />
+      )}
+    </div>
+  );
+}
+
+function PaymentSelect({
+  value,
+  onChange,
+  saving,
+}: {
+  value: string;
+  onChange: (v: PayState) => void;
+  saving: boolean;
+}) {
+  const current = toPayState(value);
+  return (
+    <div className="relative inline-flex items-center">
+      <select
+        value={current}
+        disabled={saving}
+        onChange={(e) => onChange(e.target.value as PayState)}
+        className={`appearance-none rounded-lg border px-3 py-1.5 pr-7 text-xs font-semibold outline-none transition disabled:opacity-50 ${PAY_STYLES[current]}`}
+      >
+        {PAY_STATES.map((s) => (
+          <option key={s} value={s}>{PAY_LABEL[s]}</option>
         ))}
       </select>
       {saving ? (
@@ -322,6 +377,7 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
   const [viewing, setViewing] = useState<AdminOrder | null>(null);
 
   useEffect(() => {
@@ -347,6 +403,24 @@ export default function AdminOrdersPage() {
       setOrders(prev);
     } finally {
       setSavingId(null);
+    }
+  };
+
+  const updatePayment = async (id: string, paymentStatus: PayState) => {
+    const prev = orders;
+    setOrders((list) => list.map((o) => (o.id === id ? { ...o, paymentStatus } : o)));
+    setPayingId(id);
+    try {
+      const res = await fetch(`/api/admin/payments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentStatus }),
+      });
+      if (!res.ok) setOrders(prev);
+    } catch {
+      setOrders(prev);
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -381,6 +455,7 @@ export default function AdminOrdersPage() {
                   <th className="px-4 py-3 font-medium text-subtext">Download</th>
                   <th className="px-4 py-3 font-medium text-subtext">Qty</th>
                   <th className="px-4 py-3 font-medium text-subtext">Total</th>
+                  <th className="px-4 py-3 font-medium text-subtext">Payment</th>
                   <th className="px-4 py-3 font-medium text-subtext">Status</th>
                   <th className="px-4 py-3 font-medium text-subtext">Date</th>
                   <th className="px-4 py-3 font-medium text-subtext"></th>
@@ -414,6 +489,13 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3 text-foreground">{order.quantity}</td>
                     <td className="px-4 py-3 font-medium text-foreground">
                       {formatNpr(order.totalAmount)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <PaymentSelect
+                        value={order.paymentStatus}
+                        saving={payingId === order.id}
+                        onChange={(v) => updatePayment(order.id, v)}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <StatusSelect

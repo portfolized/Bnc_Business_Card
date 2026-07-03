@@ -119,6 +119,8 @@ function EditField({
   textarea,
   placeholder,
   hint,
+  required,
+  error,
 }: {
   label: string;
   value: string;
@@ -126,27 +128,41 @@ function EditField({
   textarea?: boolean;
   placeholder?: string;
   hint?: string;
+  required?: boolean;
+  error?: string;
 }) {
+  const base =
+    "w-full rounded-lg border px-3 py-2 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:ring-2";
+  const state = error
+    ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+    : "border-gray-200 focus:border-blue-400 focus:ring-blue-100";
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-medium text-gray-600">{label}</label>
+      <label className="mb-1.5 block text-xs font-medium text-gray-600">
+        {label}
+        {required && <span className="ml-0.5 text-red-500">*</span>}
+      </label>
       {textarea ? (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={3}
           placeholder={placeholder}
-          className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          className={`${base} resize-none ${state}`}
         />
       ) : (
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          className={`${base} ${state}`}
         />
       )}
-      {hint && <p className="mt-1 text-[11px] text-gray-400">{hint}</p>}
+      {error ? (
+        <p className="mt-1 text-[11px] font-medium text-red-500">{error}</p>
+      ) : (
+        hint && <p className="mt-1 text-[11px] text-gray-400">{hint}</p>
+      )}
     </div>
   );
 }
@@ -175,8 +191,9 @@ function EditDrawer({
   liveUrl,
   onSave,
   saving,
-  canSave,
   saveError,
+  errors,
+  onClearError,
 }: {
   profile: Profile;
   onChange: (patch: Partial<Profile>) => void;
@@ -189,8 +206,9 @@ function EditDrawer({
   liveUrl: string;
   onSave: () => void;
   saving: boolean;
-  canSave: boolean;
   saveError: string;
+  errors: { fullName?: string; domain?: string };
+  onClearError: (field: "fullName" | "domain") => void;
 }) {
   return (
     <div
@@ -241,31 +259,35 @@ function EditDrawer({
               {availability === "own" && <Check className="mr-3 h-4 w-4 shrink-0 text-blue-500" />}
               {availability === "taken" && <X className="mr-3 h-4 w-4 shrink-0 text-red-500" />}
             </div>
-            <p
-              className={`text-[11px] ${
-                availability === "available"
-                  ? "text-emerald-600"
-                  : availability === "own"
-                  ? "text-blue-600"
-                  : availability === "taken"
-                  ? "text-red-500"
-                  : availability === "invalid"
-                  ? "text-amber-600"
-                  : "text-gray-400"
-              }`}
-            >
-              {availability === "available" ? (
-                <>✓ <span className="font-mono">{liveUrl}</span> is available</>
-              ) : availability === "own" ? (
-                "This is the current link for this card."
-              ) : availability === "taken" ? (
-                "That link is already taken — try another."
-              ) : availability === "invalid" ? (
-                "3–30 characters · letters, numbers and underscores only."
-              ) : (
-                "Choose where your profile lives. Published when you save."
-              )}
-            </p>
+            {errors.domain ? (
+              <p className="text-[11px] font-medium text-red-500">{errors.domain}</p>
+            ) : (
+              <p
+                className={`text-[11px] ${
+                  availability === "available"
+                    ? "text-emerald-600"
+                    : availability === "own"
+                    ? "text-blue-600"
+                    : availability === "taken"
+                    ? "text-red-500"
+                    : availability === "invalid"
+                    ? "text-amber-600"
+                    : "text-gray-400"
+                }`}
+              >
+                {availability === "available" ? (
+                  <>✓ <span className="font-mono">{liveUrl}</span> is available</>
+                ) : availability === "own" ? (
+                  "This is the current link for this card."
+                ) : availability === "taken" ? (
+                  "That link is already taken — try another."
+                ) : availability === "invalid" ? (
+                  "3–30 characters · letters, numbers and underscores only."
+                ) : (
+                  "Choose where your profile lives. Published when you save."
+                )}
+              </p>
+            )}
           </div>
 
           <div className="h-px bg-gray-100" />
@@ -283,7 +305,14 @@ function EditDrawer({
               placeholder="Upload"
             />
 
-            <EditField label="Full Name" value={profile.fullName} onChange={(v) => onChange({ fullName: v })} placeholder="Your full name" />
+            <EditField
+              label="Full Name"
+              value={profile.fullName}
+              onChange={(v) => { onChange({ fullName: v }); if (errors.fullName) onClearError("fullName"); }}
+              placeholder="Your full name"
+              required
+              error={errors.fullName}
+            />
             <EditField label="Role / Title" value={profile.role} onChange={(v) => onChange({ role: v })} placeholder="e.g. Product Designer" />
             <EditField
               label="Greeting / Intro line"
@@ -371,7 +400,7 @@ function EditDrawer({
           {saveError && <p className="mb-2 text-xs text-red-500">{saveError}</p>}
           <button
             onClick={onSave}
-            disabled={!canSave}
+            disabled={saving}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/10 transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -397,6 +426,8 @@ export default function ThemesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // Field-level validation shown after the user hits Save & Publish.
+  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; domain?: string }>({});
   const [cards, setCards] = useState<Card[]>([]);
   const [cardId, setCardId] = useState<string | null>(null);
   const [linkIds, setLinkIds] = useState<string[]>([]);
@@ -420,7 +451,11 @@ export default function ThemesPage() {
   const onDomainChange = (v: string) => {
     setDomainInput(v.toLowerCase().replace(/[^a-z0-9_]/g, ""));
     setDomainMsg(null);
+    setFieldErrors((e) => (e.domain ? { ...e, domain: undefined } : e));
   };
+
+  const clearFieldError = (field: "fullName" | "domain") =>
+    setFieldErrors((e) => ({ ...e, [field]: undefined }));
 
   // Create a new card/domain, then select it so its theme can be edited. The
   // slug itself is claimed via the "Domain for this card" field below.
@@ -574,7 +609,33 @@ export default function ThemesPage() {
   // card's content + template, and links the template to any other selected
   // domains. There's no separate "Link" step — saving publishes to the domain.
   const handleApply = async () => {
-    if (!cardId) return;
+    if (!cardId) {
+      setSaveError("Select a card to edit before publishing.");
+      return;
+    }
+
+    // Validate before doing anything. Collect every problem so all offending
+    // fields light up at once, and stop here until they're fixed.
+    const nextErrors: { fullName?: string; domain?: string } = {};
+    if (!profile.fullName.trim()) {
+      nextErrors.fullName = "Please enter your full name before publishing.";
+    }
+    if (domainInput.trim()) {
+      if (availability === "invalid") {
+        nextErrors.domain = "3–30 characters · letters, numbers and underscores only.";
+      } else if (availability === "taken") {
+        nextErrors.domain = "That link is already taken — try another.";
+      } else if (availability === "checking") {
+        nextErrors.domain = "Still checking this link — please wait a moment.";
+      }
+    }
+    if (nextErrors.fullName || nextErrors.domain) {
+      setFieldErrors(nextErrors);
+      setSaveError("Please fix the highlighted fields.");
+      return;
+    }
+    setFieldErrors({});
+
     setSaving(true);
     setSaveError("");
     setDomainMsg(null);
@@ -658,12 +719,6 @@ export default function ThemesPage() {
     ? `${APP_DOMAIN}/profile/${domainInput.trim()}`
     : APP_DOMAIN;
 
-  // Saving is blocked only while a typed domain is still resolving or invalid —
-  // otherwise the single Save button publishes content + template + domain.
-  const domainBlocksSave =
-    domainInput.trim().length > 0 &&
-    (availability === "checking" || availability === "taken" || availability === "invalid");
-  const canSave = !saving && !!cardId && !domainBlocksSave;
 
   return (
     <div className="min-h-full bg-gray-50">
@@ -975,8 +1030,9 @@ export default function ThemesPage() {
           liveUrl={liveUrl}
           onSave={handleApply}
           saving={saving}
-          canSave={canSave}
           saveError={saveError}
+          errors={fieldErrors}
+          onClearError={clearFieldError}
         />
       )}
 
