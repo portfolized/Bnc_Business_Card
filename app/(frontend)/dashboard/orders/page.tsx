@@ -35,10 +35,12 @@ import {
 
 // Payment-status badge styling + label for the customer's own orders.
 const PAY_BADGE: Record<string, { cls: string; label: string }> = {
-  PENDING: { cls: "bg-amber-50 text-amber-700 border-amber-200", label: "Awaiting approval" },
+  PROCESSING: { cls: "bg-amber-50 text-amber-700 border-amber-200", label: "Awaiting approval" },
   PAID: { cls: "bg-green-50 text-green-700 border-green-200", label: "Paid" },
-  REJECTED: { cls: "bg-red-50 text-red-700 border-red-200", label: "Payment rejected" },
   UNPAID: { cls: "bg-gray-100 text-gray-600 border-gray-200", label: "Unpaid" },
+  // legacy statuses still render sensibly if any old rows exist
+  PENDING: { cls: "bg-amber-50 text-amber-700 border-amber-200", label: "Awaiting approval" },
+  REJECTED: { cls: "bg-red-50 text-red-700 border-red-200", label: "Payment rejected" },
 };
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -365,9 +367,12 @@ export default function OrdersPage() {
     );
   }, [orders, search]);
 
-  // Orders that still need a (re)submitted payment: rejected proof, or a legacy
-  // draft that was never paid.
-  const needsPayment = filtered.filter((o) => o.paymentStatus === "REJECTED" || o.status === "DRAFT");
+  // Orders that still need a (re)submitted payment: never checked out (DRAFT),
+  // or the admin set the payment back to unpaid (UNPAID / legacy REJECTED).
+  // Orders under review (PROCESSING) or PAID are excluded.
+  const needsPayment = filtered.filter(
+    (o) => o.status === "DRAFT" || o.paymentStatus === "UNPAID" || o.paymentStatus === "REJECTED"
+  );
   const placed = filtered.filter((o) => o.status !== "DRAFT");
 
   return (
@@ -409,7 +414,7 @@ export default function OrdersPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-gray-900">{templateName(o.cardTemplate)}</p>
                   <p className="text-xs text-gray-400">{formatNpr(o.totalAmount)} · {customerName(o)}</p>
-                  {o.paymentStatus === "REJECTED" && <p className="text-[11px] font-medium text-red-500">Previous payment was rejected.</p>}
+                  {o.status !== "DRAFT" && <p className="text-[11px] font-medium text-red-500">Your payment wasn&apos;t confirmed. Please resubmit.</p>}
                 </div>
                 <button
                   type="button"
@@ -417,7 +422,7 @@ export default function OrdersPage() {
                   className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#5C2D91] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#4a2475]"
                 >
                   <Wallet className="h-3.5 w-3.5" />
-                  {o.paymentStatus === "REJECTED" ? "Resubmit" : "Pay"}
+                  {o.status !== "DRAFT" ? "Resubmit" : "Pay"}
                 </button>
               </div>
             ))}

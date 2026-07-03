@@ -21,20 +21,27 @@ type AdminOrder = {
   profile: { label: string; slug: string | null } | null;
 };
 
-type Filter = "ALL" | "PENDING" | "PAID" | "REJECTED";
+// The three payment states the admin controls.
+const PAY_STATES = ["UNPAID", "PROCESSING", "PAID"] as const;
+type PayState = (typeof PAY_STATES)[number];
+
+type Filter = "ALL" | PayState;
 
 const PAY_STYLES: Record<string, string> = {
   PAID: "bg-green-50 text-green-700 border-green-200",
+  PROCESSING: "bg-amber-50 text-amber-700 border-amber-200",
+  UNPAID: "bg-gray-100 text-gray-600 border-gray-200",
+  // legacy statuses still render sensibly if any old rows exist
   PENDING: "bg-amber-50 text-amber-700 border-amber-200",
   REJECTED: "bg-red-50 text-red-700 border-red-200",
-  UNPAID: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
 const PAY_LABEL: Record<string, string> = {
   PAID: "Paid",
-  PENDING: "Awaiting",
-  REJECTED: "Rejected",
+  PROCESSING: "Processing",
   UNPAID: "Unpaid",
+  PENDING: "Processing",
+  REJECTED: "Unpaid",
 };
 
 export default function AdminPaymentsPage() {
@@ -52,16 +59,19 @@ export default function AdminPaymentsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Orders submitted and awaiting an admin decision. "PENDING" is a legacy alias.
+  const isAwaiting = (s: string) => s === "PROCESSING" || s === "PENDING";
+
   const totals = useMemo(() => {
     const paid = orders.filter((o) => o.paymentStatus === "PAID");
     return {
       collected: paid.reduce((s, o) => s + o.totalAmount, 0),
       paidCount: paid.length,
-      pending: orders.filter((o) => o.paymentStatus === "PENDING").length,
+      pending: orders.filter((o) => isAwaiting(o.paymentStatus)).length,
     };
   }, [orders]);
 
-  const decide = async (id: string, paymentStatus: "PAID" | "REJECTED") => {
+  const decide = async (id: string, paymentStatus: PayState) => {
     setBusyId(id);
     try {
       const res = await fetch(`/api/admin/payments/${id}`, {
@@ -82,12 +92,14 @@ export default function AdminPaymentsPage() {
     }
   };
 
-  const rows = orders.filter((o) => (filter === "ALL" ? true : o.paymentStatus === filter));
+  const rows = orders.filter((o) =>
+    filter === "ALL" ? true : filter === "PROCESSING" ? isAwaiting(o.paymentStatus) : o.paymentStatus === filter
+  );
 
   return (
     <div className="px-6 py-8 md:px-8 md:py-10">
       <h1 className="text-2xl font-bold text-foreground">Payments</h1>
-      <p className="mt-1 text-subtext">Review payment proofs and approve or reject each order.</p>
+      <p className="mt-1 text-subtext">Review payment proofs and set each order paid or unpaid.</p>
 
       {/* Totals */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -106,7 +118,7 @@ export default function AdminPaymentsPage() {
 
       {/* Filter */}
       <div className="mt-6 flex flex-wrap gap-2">
-        {(["ALL", "PENDING", "PAID", "REJECTED"] as Filter[]).map((f) => (
+        {(["ALL", ...PAY_STATES] as Filter[]).map((f) => (
           <button
             key={f}
             type="button"
@@ -177,7 +189,17 @@ export default function AdminPaymentsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      {o.paymentStatus === "PENDING" ? (
+                      {o.paymentStatus === "PAID" ? (
+                        <button
+                          type="button"
+                          onClick={() => decide(o.id, "UNPAID")}
+                          disabled={busyId === o.id}
+                          className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                        >
+                          {busyId === o.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                          Set unpaid
+                        </button>
+                      ) : (
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
@@ -186,20 +208,20 @@ export default function AdminPaymentsPage() {
                             className="flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
                           >
                             {busyId === o.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                            Approve
+                            Mark paid
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => decide(o.id, "REJECTED")}
-                            disabled={busyId === o.id}
-                            className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                            Reject
-                          </button>
+                          {isAwaiting(o.paymentStatus) && (
+                            <button
+                              type="button"
+                              onClick={() => decide(o.id, "UNPAID")}
+                              disabled={busyId === o.id}
+                              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              Set unpaid
+                            </button>
+                          )}
                         </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-subtext">

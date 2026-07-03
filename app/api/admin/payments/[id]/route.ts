@@ -2,9 +2,11 @@ import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-// Approve or reject a submitted manual payment. Approving marks it PAID;
-// rejecting marks it REJECTED so the customer can resubmit a new screenshot.
-const VALID = ["PAID", "REJECTED"] as const;
+// The admin sets an order's payment state manually. The three states are:
+//   UNPAID     — no (accepted) payment yet; the customer can pay / resubmit.
+//   PROCESSING — payment submitted and under review.
+//   PAID        — payment confirmed.
+const VALID = ["UNPAID", "PROCESSING", "PAID"] as const;
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const gate = await requireAdmin();

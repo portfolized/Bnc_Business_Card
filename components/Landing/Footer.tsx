@@ -123,7 +123,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 border-t border-gray-200 pt-6 text-center text-sm text-subtext">
-          © 2025 BNC Business Card · काठमाडौं, नेपाल · All rights reserved.
+          © 2026 BNC Business Card · काठमाडौं, नेपाल · All rights reserved.
         </div>
       </div>
     </footer>

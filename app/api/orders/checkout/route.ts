@@ -6,9 +6,9 @@ import { resolveCardUnitPrice, normalizeVipTier, type CardType } from "@/lib/cur
 
 // Places a card order with a manual payment. The customer picks one of the
 // admin-defined payment methods, pays out-of-band and uploads a screenshot; the
-// order is created as PENDING with paymentStatus PENDING for the admin to
-// approve or reject. Passing an existing `orderId` resubmits proof for an order
-// whose payment was rejected (or is still awaiting review).
+// order is created as PENDING with paymentStatus PROCESSING for the admin to
+// mark paid, leave processing, or set back to unpaid. Passing an existing
+// `orderId` resubmits proof for an order that isn't paid yet.
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       where: { id: existing.id },
       data: {
         status: existing.status === "DRAFT" ? "PENDING" : existing.status,
-        paymentStatus: "PENDING",
+        paymentStatus: "PROCESSING",
         paymentMethod,
         paymentProofUrl,
       },
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       profileId: profile.id,
       status: "PENDING",
-      paymentStatus: "PENDING",
+      paymentStatus: "PROCESSING",
       paymentMethod,
       paymentProofUrl,
       qrEnabled: Boolean(qrEnabled),
