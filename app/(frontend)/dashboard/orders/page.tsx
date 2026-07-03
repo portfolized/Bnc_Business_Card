@@ -19,19 +19,27 @@ import {
   Clock,
   Palette,
   Globe,
-  Loader2,
   ExternalLink,
   Wallet,
 } from "lucide-react";
 import { CARD_TEMPLATES } from "@/components/customize/templateRegistry";
 import { PENDING_CARD_KEY, type PendingCard } from "@/components/customize/types";
 import OrderForm, { type NewOrderForm } from "@/components/customize/OrderForm";
+import PaymentPanel from "@/components/customize/PaymentPanel";
 import {
   formatNpr,
   cardTypeLabel,
   type CardType,
   type VipTier,
 } from "@/lib/currency";
+
+// Payment-status badge styling + label for the customer's own orders.
+const PAY_BADGE: Record<string, { cls: string; label: string }> = {
+  PENDING: { cls: "bg-amber-50 text-amber-700 border-amber-200", label: "Awaiting approval" },
+  PAID: { cls: "bg-green-50 text-green-700 border-green-200", label: "Paid" },
+  REJECTED: { cls: "bg-red-50 text-red-700 border-red-200", label: "Payment rejected" },
+  UNPAID: { cls: "bg-gray-100 text-gray-600 border-gray-200", label: "Unpaid" },
+};
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,6 +59,8 @@ type Order = {
   id: string;
   status: OrderStatus;
   paymentStatus: string;
+  paymentMethod: string | null;
+  paymentProofUrl: string | null;
   qrEnabled: boolean;
   cardType: CardType;
   cardTier: VipTier | null;
@@ -295,7 +305,8 @@ export default function OrdersPage() {
   const [viewing, setViewing] = useState<Order | null>(null);
   const [creating, setCreating] = useState(false);
   const [prefill, setPrefill] = useState<Partial<NewOrderForm> | undefined>(undefined);
-  const [payingId, setPayingId] = useState<string | null>(null);
+  // Order whose payment we're (re)submitting proof for, shown in a modal.
+  const [resubmit, setResubmit] = useState<Order | null>(null);
 
   const refresh = async () => {
     try {
@@ -307,28 +318,6 @@ export default function OrdersPage() {
   };
 
   useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
-
-  // Re-start Khalti payment for a draft order.
-  const completePayment = async (orderId: string) => {
-    setPayingId(orderId);
-    try {
-      const res = await fetch("/api/orders/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.payment_url) {
-        window.location.href = data.payment_url;
-        return;
-      }
-      alert(data.error ?? "Payment gateway is not configured yet.");
-    } catch {
-      alert("Network error. Please try again.");
-    } finally {
-      setPayingId(null);
-    }
-  };
 
   // If we arrived from the landing "Order Now" flow, pre-fill the modal.
   useEffect(() => {
@@ -376,7 +365,9 @@ export default function OrdersPage() {
     );
   }, [orders, search]);
 
-  const drafts = filtered.filter((o) => o.status === "DRAFT");
+  // Orders that still need a (re)submitted payment: rejected proof, or a legacy
+  // draft that was never paid.
+  const needsPayment = filtered.filter((o) => o.paymentStatus === "REJECTED" || o.status === "DRAFT");
   const placed = filtered.filter((o) => o.status !== "DRAFT");
 
   return (
@@ -398,16 +389,16 @@ export default function OrdersPage() {
         </p>
       </div>
 
-      {/* Drafts awaiting payment */}
-      {drafts.length > 0 && (
+      {/* Payments awaiting (re)submission */}
+      {needsPayment.length > 0 && (
         <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50/50 p-5">
           <div className="mb-4 flex items-center gap-2">
             <Wallet className="h-4 w-4 text-amber-600" />
-            <h2 className="text-sm font-bold text-amber-800">Pending payment ({drafts.length})</h2>
-            <span className="text-xs text-amber-600">Complete payment to place these orders.</span>
+            <h2 className="text-sm font-bold text-amber-800">Payment needed ({needsPayment.length})</h2>
+            <span className="text-xs text-amber-600">Submit your payment proof to place these orders.</span>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {drafts.map((o) => (
+            {needsPayment.map((o) => (
               <div key={o.id} className="flex items-center gap-3 rounded-xl border border-amber-200 bg-white p-3">
                 {(o.frontImageUrl || o.backImageUrl) ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -418,15 +409,15 @@ export default function OrdersPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-gray-900">{templateName(o.cardTemplate)}</p>
                   <p className="text-xs text-gray-400">{formatNpr(o.totalAmount)} · {customerName(o)}</p>
+                  {o.paymentStatus === "REJECTED" && <p className="text-[11px] font-medium text-red-500">Previous payment was rejected.</p>}
                 </div>
                 <button
                   type="button"
-                  onClick={() => completePayment(o.id)}
-                  disabled={payingId === o.id}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#5C2D91] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#4a2475] disabled:opacity-60"
+                  onClick={() => setResubmit(o)}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#5C2D91] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#4a2475]"
                 >
-                  {payingId === o.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wallet className="h-3.5 w-3.5" />}
-                  Pay
+                  <Wallet className="h-3.5 w-3.5" />
+                  {o.paymentStatus === "REJECTED" ? "Resubmit" : "Pay"}
                 </button>
               </div>
             ))}
@@ -451,7 +442,12 @@ export default function OrdersPage() {
           <div key={o.id} className="flex min-h-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
             <div className="mb-4 flex items-start justify-between">
               <h3 className="font-mono text-lg font-bold tracking-wide text-gray-900">{shortId(o.id)}</h3>
-              <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[o.status]}`}>{title(o.status)}</span>
+              <div className="flex flex-col items-end gap-1">
+                <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[o.status]}`}>{title(o.status)}</span>
+                <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${(PAY_BADGE[o.paymentStatus] ?? PAY_BADGE.UNPAID).cls}`}>
+                  {(PAY_BADGE[o.paymentStatus] ?? PAY_BADGE.UNPAID).label}
+                </span>
+              </div>
             </div>
 
             {(o.frontImageUrl || o.backImageUrl) && (
@@ -501,8 +497,28 @@ export default function OrdersPage() {
         <CreateOrderModal
           initial={prefill}
           onClose={() => { setCreating(false); setPrefill(undefined); }}
-          onDone={() => { refresh(); }}
+          onDone={() => { setCreating(false); setPrefill(undefined); refresh(); }}
         />
+      )}
+      {resubmit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={(e) => e.target === e.currentTarget && setResubmit(null)}>
+          <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Submit payment</h2>
+                <p className="text-xs text-gray-400">Order {shortId(resubmit.id)}</p>
+              </div>
+              <button onClick={() => setResubmit(null)} className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <PaymentPanel
+              amountNpr={resubmit.totalAmount}
+              payload={{ orderId: resubmit.id }}
+              onSuccess={() => { setResubmit(null); refresh(); }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { CARD_TEMPLATES } from "./templateRegistry";
 import { PENDING_CARD_KEY, type PersonalInfo } from "./types";
 import OrderCardPreview from "./OrderCardPreview";
 import VipCardPreview from "./VipCardPreview";
+import PaymentPanel from "./PaymentPanel";
 import {
   formatNpr,
   resolveCardUnitPrice,
@@ -57,10 +58,11 @@ export const EMPTY_ORDER_FORM: NewOrderForm = {
 type CardOption = { id: string; label: string; slug: string | null; ordered?: boolean };
 
 /**
- * The full "Order a Card" form: details, a template picker, a live preview and a
- * Khalti checkout footer. Shared by the dashboard order modal and the landing
- * page. Logged-in visitors check out directly; logged-out visitors have their
- * design saved and are sent to login, returning to the dashboard to pay.
+ * The full "Order a Card" form: details, a template picker and a live preview.
+ * Shared by the dashboard order modal and the landing page. Logged-in visitors
+ * continue to the manual payment step (pick a method → pay → upload proof);
+ * logged-out visitors have their design saved and are sent to login, returning
+ * to the dashboard to complete the order.
  */
 export default function OrderForm({
   initial,
@@ -80,7 +82,7 @@ export default function OrderForm({
   const [prices, setPrices] = useState<CardPrices>(DEFAULT_CARD_PRICES);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
+  const [step, setStep] = useState<"details" | "payment">("details");
   const set = (patch: Partial<NewOrderForm>) => setForm((p) => ({ ...p, ...patch }));
 
   // Unit price depends on the chosen card type / VIP tier.
@@ -103,13 +105,12 @@ export default function OrderForm({
       setError("Full name is required.");
       return;
     }
-    setSaving(true);
     setError("");
-    setInfo("");
 
     // Logged-out visitor (landing page): stash the design and route through
     // login. The dashboard order page picks this up and reopens the form.
     if (status !== "authenticated") {
+      setSaving(true);
       try {
         localStorage.setItem(PENDING_CARD_KEY, JSON.stringify({
           info: {
@@ -136,29 +137,8 @@ export default function OrderForm({
       return;
     }
 
-    try {
-      const res = await fetch("/api/orders/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, profileId: form.profileId === "new" ? null : form.profileId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.payment_url) {
-        // Redirect to Khalti to complete payment.
-        window.location.href = data.payment_url;
-        return;
-      }
-      if (res.ok && data.needsConfig) {
-        setInfo("Payment isn't configured yet, so your order was saved as a draft. An admin can enable Khalti to take payment.");
-        onDone?.();
-        return;
-      }
-      setError(data.error ?? "Failed to start checkout.");
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setSaving(false);
-    }
+    // Logged-in: move to the manual payment step (choose method → pay → upload).
+    setStep("payment");
   };
 
   const inputCls =
@@ -173,9 +153,21 @@ export default function OrderForm({
     address: form.address || "Your Address",
   };
 
-  const submitLabel = status === "authenticated"
-    ? `Pay ${formatNpr(unitPrice * form.quantity)} with Khalti`
-    : "Continue to order";
+  const submitLabel = status === "authenticated" ? "Continue to payment" : "Continue to order";
+
+  // Manual payment step: pick a method, view its QR + details, upload proof.
+  if (step === "payment") {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <PaymentPanel
+          amountNpr={unitPrice * form.quantity}
+          payload={{ ...form, profileId: form.profileId === "new" ? null : form.profileId }}
+          onBack={() => setStep("details")}
+          onSuccess={() => (onDone ? onDone() : router.push("/dashboard/orders"))}
+        />
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
@@ -354,11 +346,10 @@ export default function OrderForm({
           <span className="text-base font-bold text-gray-900">{formatNpr(unitPrice * form.quantity)}</span>
         </div>
         {error && <p className="text-sm text-red-500">{error}</p>}
-        {info && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">{info}</p>}
         <div className="flex items-center justify-end gap-3">
           {onClose && (
             <button type="button" onClick={onClose} className="rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-              {info ? "Close" : "Cancel"}
+              Cancel
             </button>
           )}
           <button type="submit" disabled={saving || status === "loading"} className="flex items-center gap-2 rounded-lg bg-[#5C2D91] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4a2475] disabled:opacity-60">

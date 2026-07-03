@@ -106,6 +106,8 @@ model Order {
   profileId       String?
   status          OrderStatus @default(DRAFT)
   paymentStatus   String      @default("UNPAID")
+  paymentMethod   String?     // name of the chosen PaymentMethod
+  paymentProofUrl String?     // uploaded payment screenshot (hosted URL)
   pidx            String?
   transactionId   String?
   qrEnabled       Boolean     @default(true)
@@ -191,4 +193,17 @@ model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+// Admin-defined manual payment options. Each has a QR image + description shown
+// to the customer at checkout, who pays out-of-band and uploads a screenshot.
+model PaymentMethod {
+  id          String   @id @default(cuid())
+  name        String
+  qrUrl       String?
+  description String   @default("")
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

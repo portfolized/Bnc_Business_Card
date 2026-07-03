@@ -1,57 +1,47 @@
-# Payments (Khalti)
+# Payments (Manual QR + admin approval)
 
-## What happens right now
+Payments are handled **manually** — there is no payment gateway. The admin publishes one or
+more payment methods (each a QR image + written details); the customer pays out-of-band and
+uploads a screenshot, which the admin approves or rejects.
 
-Payments use **Khalti ePayment (KPG-2)**. The flow:
+## The flow
 
-1. User fills the order form (landing page or dashboard) and submits.
-2. `POST /api/orders/checkout` creates a **DRAFT** order, then calls Khalti `initiate`.
-3. The user is redirected to Khalti's `payment_url` to pay.
-4. Khalti redirects back to `/dashboard/orders/verify?pidx=...`.
-5. `POST /api/orders/verify` looks up the `pidx`. If **Completed**, the order becomes
-   **PENDING / PAID** (it's now "placed").
+1. **Admin sets up payment methods** at `/admin/settings` → *Payment Methods*. Each method has a
+   **name**, an uploaded **QR image**, and a **description** (account/wallet details, notes). A
+   method can be toggled *active* / *inactive*.
+2. **User orders a card** (landing page or dashboard). After filling the card details they click
+   **Continue to payment**.
+3. The **payment step** shows a dropdown of active method names. Picking one reveals its **QR**
+   and **description**. The user pays externally, then **uploads a screenshot** of the payment.
+4. Submitting creates the order with `status = PENDING` and `paymentStatus = PENDING`
+   (awaiting approval), storing the chosen `paymentMethod` and the `paymentProofUrl`.
+5. **Admin reviews** at `/admin/payments`: each pending order shows the method + proof image.
+   - **Approve** → `paymentStatus = PAID`.
+   - **Reject** → `paymentStatus = REJECTED`; the user sees a "Payment rejected — resubmit"
+     entry in their dashboard and can upload a new screenshot for the same order.
 
-**Current mode: MOCK.** Because `KHALTI_SECRET_KEY` is **not set**, checkout skips the real
-Khalti call and routes to a built-in test screen (`/dashboard/orders/mock-pay`) so the whole
-flow works locally without charging anything. No real money moves yet.
+## `paymentStatus` values
 
-Relevant files:
-- `lib/khalti.ts` — initiate + lookup + sandbox/live host selection
-- `app/api/orders/checkout/route.ts` — creates the draft + starts payment
-- `app/api/orders/verify/route.ts` — verifies and places the order
+- `PENDING` — proof submitted, awaiting admin review.
+- `PAID` — approved by the admin.
+- `REJECTED` — rejected; the user may resubmit a new screenshot.
 
-## How to enable real Khalti payments
+(The order `status` — DRAFT/PENDING/PROCESSING/SHIPPED/… — tracks fulfilment separately.)
 
-1. **Get a secret key** from the Khalti merchant dashboard (test key for sandbox,
-   live key for production).
+## Relevant files
 
-2. **Add it to `.env`:**
-
-   ```env
-   # Required — turning this on switches OFF mock mode.
-   KHALTI_SECRET_KEY=your_secret_key_here
-
-   # Optional — host selection (defaults to sandbox = safe):
-   #   omit / unset      -> sandbox  (https://dev.khalti.com/api/v2)
-   #   KHALTI_ENV=live   -> production (https://khalti.com/api/v2)
-   # KHALTI_ENV=live
-   ```
-
-   > The key and host must match: a **test** key only works on **sandbox**, a **live** key
-   > only on **production**.
-
-3. **Restart the app** so the env var is picked up.
-
-4. **Test on sandbox** before going live:
-   - Khalti test IDs `9800000000`–`9800000005`, MPIN `1111`, OTP `987654`.
-   - These work **only** on the sandbox host.
-
-5. **Go live:** set the **live** secret key and `KHALTI_ENV=live`, and make sure the app
-   is served over HTTPS at a public URL (Khalti uses `return_url` / `website_url` from the
-   request origin).
+- `prisma/schema.prisma` — `PaymentMethod` model; `Order.paymentMethod` / `Order.paymentProofUrl`.
+- `app/api/admin/payment-methods/*` — admin CRUD for payment methods.
+- `app/api/payment-methods/route.ts` — active methods, read by the checkout step.
+- `app/api/orders/checkout/route.ts` — creates the order (or resubmits proof) with the chosen
+  method + screenshot.
+- `app/api/admin/payments/[id]/route.ts` — approve / reject a submitted payment.
+- `components/customize/PaymentPanel.tsx` — the user-facing method picker + QR + proof upload.
+- `app/(admin)/admin/settings/page.tsx` — admin management of payment methods.
+- `app/(admin)/admin/payments/page.tsx` — admin payment history + approve/reject.
 
 ## Notes
 
-- Amounts are sent to Khalti in **paisa** (1 NPR = 100 paisa); minimum charge is **Rs 10**.
-- An unpaid order stays a **DRAFT** and can be paid later from the dashboard "Pending payment" list.
-- Verification is the source of truth — an order is only placed after Khalti reports `Completed`.
+- Image uploads (QR and payment screenshots) go through `components/ui/ImageUpload.tsx`, which
+  uploads to **Cloudinary** (`lib/cloudinary.ts`) and stores the returned hosted URL.
+- There is no automated verification — approval is a manual admin decision.
