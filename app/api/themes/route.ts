@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { canEditProfile } from "@/lib/trial";
 
 // Resolve which card (Profile) to act on. If a profileId is supplied and owned
 // by the user, use it; otherwise fall back to the user's first card (creating
@@ -80,6 +81,12 @@ export async function PUT(req: NextRequest) {
   } = body;
 
   const profile = await resolveProfile(session.user.id, profileId);
+
+  // Locked (expired free) templates are read-only until an order activates them.
+  const edit = await canEditProfile(session.user.id, profile.id);
+  if (!edit.ok) {
+    return NextResponse.json({ error: edit.reason }, { status: 403 });
+  }
 
   const updated = await prisma.profile.update({
     where: { id: profile.id },

@@ -45,6 +45,7 @@ export type PendingCard = {
   quantity?: number;
   qrEnabled?: boolean;
   slug?: string;
+  affiliateCode?: string;
 };
 
 export const DEFAULT_PERSONAL_INFO: PersonalInfo = {

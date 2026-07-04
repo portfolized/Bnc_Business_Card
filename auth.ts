@@ -110,13 +110,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // Node-only and therefore lives here, not in auth.config.ts.
     ...authConfig.callbacks,
     async jwt({ token, user }) {
+      const now = Date.now();
+
       if (user) {
         token.id = user.id!;
         token.username = user.username ?? "";
         token.role = user.role ?? "user";
+        token.syncedAt = now;
       }
 
-      if (token.email && (!token.username || !token.id)) {
+      // Re-sync id/username/role from the DB when a claim is missing, or at most
+      // once every 5 minutes otherwise. This keeps the session valid if the
+      // user's row id changes out from under it (e.g. a dev DB reseed) — the old
+      // behavior only backfilled a *missing* id, so a stale id would linger and
+      // every write would fail its foreign-key check. Also picks up role changes.
+      const syncedAt = typeof token.syncedAt === "number" ? token.syncedAt : 0;
+      const stale = now - syncedAt > 5 * 60_000;
+      if (token.email && (!token.id || !token.username || stale)) {
         const dbUser = await prisma.user.findUnique({
           where: { email: token.email },
         });
@@ -124,6 +134,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.id = dbUser.id;
           token.username = dbUser.username ?? dbUser.email.split("@")[0] ?? "user";
           token.role = dbUser.role ?? "user";
+          token.syncedAt = now;
         }
       }
 

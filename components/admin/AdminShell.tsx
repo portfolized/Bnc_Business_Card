@@ -24,7 +24,7 @@ const navItems = [
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
   { label: "Payments", href: "/admin/payments", icon: CreditCard },
-  { label: "Affiliate Payments", href: "/admin/affiliate", icon: Handshake },
+  { label: "Affiliate", href: "/admin/affiliate", icon: Handshake },
   { label: "Blog", href: "/admin/articles", icon: BookOpen },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];

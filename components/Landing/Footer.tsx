@@ -105,18 +105,18 @@ export default function Footer() {
               <li className="flex items-start gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <span>
-                  Kausaltar, Bhaktapur, Nepal
+                  Kalimati, Kathmandu
                   <br />
-                  <span className="text-xs text-subtext/70">काउसलटार, भक्तपुर, नेपाल</span>
+                  P.O. Box 4032
                 </span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 shrink-0 text-primary" />
-                +977 9761158811
+                014534577
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 shrink-0 text-primary" />
-                contact@bncbusinesscard.com
+                info@bncsolutiongroup.com
               </li>
             </ul>
           </div>

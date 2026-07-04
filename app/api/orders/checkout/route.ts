@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { getCardPrices } from "@/lib/settings";
 import { resolveCardUnitPrice, normalizeVipTier, type CardType } from "@/lib/currency";
+import { quoteAffiliate } from "@/lib/affiliate";
 
 // Places a card order with a manual payment. The customer picks one of the
 // admin-defined payment methods, pays out-of-band and uploads a screenshot; the
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
     designMode = "template",
     slug = "",
     label,
+    affiliateCode = "",
   } = body ?? {};
 
   if (!fullName?.trim()) {
@@ -110,6 +112,12 @@ export async function POST(req: NextRequest) {
   const finalBack = mode === "image" ? (backImageUrl || null) : null;
 
   const qty = Math.max(1, Number(quantity) || 1);
+
+  // Resolve an affiliate code (if any) into a buyer discount + affiliate
+  // commission, locked in as amounts on this order.
+  const subtotal = Number((qty * unitPrice).toFixed(2));
+  const quote = await quoteAffiliate(affiliateCode, subtotal, session.user.id);
+  const totalAmount = quote ? quote.total : subtotal;
 
   // Attach to an existing domain/card or create a new one.
   let profile = profileId
@@ -161,7 +169,15 @@ export async function POST(req: NextRequest) {
       frontImageUrl: finalFront,
       backImageUrl: finalBack,
       quantity: qty,
-      totalAmount: Number((qty * unitPrice).toFixed(2)),
+      totalAmount,
+      ...(quote
+        ? {
+            affiliateId: quote.affiliateId,
+            affiliateCode: quote.affiliateCode,
+            discountAmount: quote.discountAmount,
+            commissionAmount: quote.commissionAmount,
+          }
+        : {}),
       shippingAddress: {
         name: fullName.trim(),
         email: email?.trim() ?? "",

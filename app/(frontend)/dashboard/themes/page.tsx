@@ -18,6 +18,9 @@ import {
   ShoppingBag,
   Monitor,
   Smartphone,
+  Clock,
+  Sparkles,
+  Lock,
 } from "lucide-react";
 import {
   TEMPLATES,
@@ -35,6 +38,20 @@ type Card = {
   fullName: string;
   cardTemplate: string;
   ordered?: boolean; // true once a (non-draft) order exists for this card
+  locked?: boolean; // demo template past the free trial → read-only until ordered
+};
+
+// Free-template trial status (see @/lib/trial). Drives the countdown + quota UI.
+type Trial = {
+  createdAt: string;
+  trialEndsAt: string;
+  trialActive: boolean;
+  freeLimit: number;
+  demoCount: number;
+  orderedCount: number;
+  remainingFree: number;
+  canCreateFree: boolean;
+  blockReason: string | null;
 };
 
 // ─── Defaults ──────────────────────────────────────────────────────────────────
@@ -415,6 +432,64 @@ function EditDrawer({
   );
 }
 
+// ─── Free-trial countdown banner ─────────────────────────────────────────────────
+
+function TrialBanner({ trial }: { trial: Trial }) {
+  // Tick every second while the trial is live so the countdown stays accurate.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!trial.trialActive) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [trial.trialActive]);
+
+  if (!trial.trialActive) {
+    return (
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-3.5">
+        <div className="flex items-center gap-2.5 text-sm text-red-800">
+          <Clock className="h-4 w-4 shrink-0" />
+          <span>
+            <span className="font-semibold">Free trial ended.</span> Your free templates are
+            now read-only — place an order to activate and edit them.
+          </span>
+        </div>
+        <Link
+          href="/dashboard/orders?new=1"
+          className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
+        >
+          <ShoppingBag className="h-3.5 w-3.5" /> Order a card
+        </Link>
+      </div>
+    );
+  }
+
+  const ms = Math.max(0, new Date(trial.trialEndsAt).getTime() - now);
+  const days = Math.floor(ms / 86_400_000);
+  const hours = Math.floor((ms % 86_400_000) / 3_600_000);
+  const mins = Math.floor((ms % 3_600_000) / 60_000);
+  const secs = Math.floor((ms % 60_000) / 1_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5">
+      <div className="flex items-center gap-2.5 text-sm text-emerald-800">
+        <Sparkles className="h-4 w-4 shrink-0" />
+        <span>
+          <span className="font-semibold">Free trial.</span> Build up to {trial.freeLimit} free
+          templates and edit them freely — {trial.remainingFree} of {trial.freeLimit} left.
+        </span>
+      </div>
+      <div className="flex items-center gap-2 text-emerald-900">
+        <Clock className="h-4 w-4 shrink-0" />
+        <span className="font-mono text-sm font-semibold tabular-nums">
+          {days}d {pad(hours)}:{pad(mins)}:{pad(secs)}
+        </span>
+        <span className="text-xs text-emerald-600">left</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────────
 
 export default function ThemesPage() {
@@ -429,6 +504,7 @@ export default function ThemesPage() {
   // Field-level validation shown after the user hits Save & Publish.
   const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; domain?: string }>({});
   const [cards, setCards] = useState<Card[]>([]);
+  const [trial, setTrial] = useState<Trial | null>(null);
   const [cardId, setCardId] = useState<string | null>(null);
   const [linkIds, setLinkIds] = useState<string[]>([]);
   const [domainInput, setDomainInput] = useState("");
@@ -457,9 +533,30 @@ export default function ThemesPage() {
   const clearFieldError = (field: "fullName" | "domain") =>
     setFieldErrors((e) => ({ ...e, [field]: undefined }));
 
+  // Pull the latest free-trial status (countdown + how many free templates are
+  // left). Refetched after creating a card so the quota stays in sync.
+  const refreshTrial = async () => {
+    try {
+      const res = await fetch("/api/trial");
+      if (res.ok) setTrial(await res.json());
+    } catch {
+      // ignore — the banner just won't show
+    }
+  };
+
+  useEffect(() => {
+    refreshTrial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Create a new card/domain, then select it so its theme can be edited. The
   // slug itself is claimed via the "Domain for this card" field below.
   const handleCreateDomain = async () => {
+    // Instant feedback when the free-template quota is used up or the trial ended.
+    if (trial && !trial.canCreateFree) {
+      setDomainMsg({ ok: false, text: trial.blockReason ?? "You can't create more free templates." });
+      return;
+    }
     setCreatingDomain(true);
     try {
       const res = await fetch("/api/cards", {
@@ -469,11 +566,14 @@ export default function ThemesPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setCards((prev) => [...prev, { id: data.id, label: data.label, slug: data.slug ?? null, fullName: data.fullName ?? "", cardTemplate: data.cardTemplate ?? TEMPLATES[0].id, ordered: false }]);
+        setCards((prev) => [...prev, { id: data.id, label: data.label, slug: data.slug ?? null, fullName: data.fullName ?? "", cardTemplate: data.cardTemplate ?? TEMPLATES[0].id, ordered: false, locked: false }]);
         setCardId(data.id);
+        refreshTrial();
+      } else {
+        setDomainMsg({ ok: false, text: data.error ?? "Couldn't create a new template." });
       }
     } catch {
-      // ignore — selector stays on the current card
+      setDomainMsg({ ok: false, text: "Network error. Please try again." });
     } finally {
       setCreatingDomain(false);
     }
@@ -609,11 +709,6 @@ export default function ThemesPage() {
   // card's content + template, and links the template to any other selected
   // domains. There's no separate "Link" step — saving publishes to the domain.
   const handleApply = async () => {
-    if (!cardId) {
-      setSaveError("Select a card to edit before publishing.");
-      return;
-    }
-
     // Validate before doing anything. Collect every problem so all offending
     // fields light up at once, and stop here until they're fixed.
     const nextErrors: { fullName?: string; domain?: string } = {};
@@ -640,6 +735,31 @@ export default function ThemesPage() {
     setSaveError("");
     setDomainMsg(null);
     try {
+      // 0. If no card is selected yet (e.g. a brand-new user's first template),
+      //    create a free one now. The server caps this at the free limit / trial.
+      let activeId = cardId;
+      if (!activeId) {
+        const createRes = await fetch("/api/cards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: `Card ${cards.length + 1}`, cardTemplate: selectedId }),
+        });
+        const created = await createRes.json();
+        if (!createRes.ok) {
+          setSaveError(created.error ?? "Couldn't create a free template.");
+          return;
+        }
+        activeId = created.id as string;
+        // Add to the list so the slug/template maps below can find it, but defer
+        // selecting it (setCardId) until after the save so the reload effect
+        // fetches the already-saved content instead of racing with this save.
+        setCards((prev) => [
+          ...prev,
+          { id: created.id, label: created.label, slug: created.slug ?? null, fullName: created.fullName ?? "", cardTemplate: created.cardTemplate ?? selectedId, ordered: false, locked: false },
+        ]);
+      }
+      const createdNew = activeId !== cardId;
+
       // 1. Claim / update the domain slug if one is entered and it isn't already
       //    this card's slug. Blocked states are guarded by the disabled button.
       const slug = domainInput.trim();
@@ -647,7 +767,7 @@ export default function ThemesPage() {
         const domRes = await fetch("/api/domain", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profileId: cardId, slug }),
+          body: JSON.stringify({ profileId: activeId, slug }),
         });
         const domData = await domRes.json();
         if (!domRes.ok) {
@@ -655,17 +775,18 @@ export default function ThemesPage() {
           return;
         }
         setDomainInput(domData.slug);
-        setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, slug: domData.slug } : c)));
+        setCards((prev) => prev.map((c) => (c.id === activeId ? { ...c, slug: domData.slug } : c)));
       }
 
       // 2. Save the card's content + selected template.
       const res = await fetch("/api/themes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...profile, cardTemplate: selectedId, profileId: cardId }),
+        body: JSON.stringify({ ...profile, cardTemplate: selectedId, profileId: activeId }),
       });
       if (!res.ok) {
-        setSaveError("Failed to save. Please try again.");
+        const errData = await res.json().catch(() => ({}));
+        setSaveError(errData.error ?? "Failed to save. Please try again.");
         return;
       }
 
@@ -679,11 +800,17 @@ export default function ThemesPage() {
       }
 
       // Reflect the new template locally for the affected cards.
-      const affected = new Set([cardId, ...linkIds]);
+      const affected = new Set([activeId, ...linkIds]);
       setCards((prev) => prev.map((c) => (affected.has(c.id) ? { ...c, cardTemplate: selectedId } : c)));
       setActiveId(selectedId);
       setLinkIds([]);
       setEditing(false);
+      // Select the freshly created card now that its content is saved, and sync
+      // the free-template quota.
+      if (createdNew) {
+        setCardId(activeId);
+        refreshTrial();
+      }
       setDomainMsg({
         ok: true,
         text: slug ? `Published — live at /profile/${slug}` : "Saved & published.",
@@ -712,6 +839,14 @@ export default function ThemesPage() {
   // the user to order it so they get a physical NFC card linked to this profile.
   const selectedCard = cards.find((c) => c.id === cardId);
   const isDemo = Boolean(selectedCard) && !selectedCard?.ordered;
+  // A locked card is a demo template past the free trial: shown but read-only
+  // until an order activates it.
+  const isLocked = Boolean(selectedCard?.locked);
+  // Where "order this card" points, so the order attaches to (and activates)
+  // this exact template.
+  const orderThisCardHref = selectedCard
+    ? `/dashboard/orders?new=1&profileId=${selectedCard.id}`
+    : "/dashboard/orders?new=1";
 
   // The public URL this card is (or will be) served from. Reflects the slug as
   // you edit it, so the preview address bar always points at the real domain.
@@ -788,22 +923,44 @@ export default function ThemesPage() {
         </div>
       ) : (
         <div className="px-6 py-6 md:px-8">
-          {/* Demo card notice — this profile has no ordered NFC card yet. */}
-          {isDemo && (
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5">
-              <div className="flex items-center gap-2.5 text-sm text-amber-800">
-                <CreditCard className="h-4 w-4 shrink-0" />
+          {/* Free-trial countdown + quota. */}
+          {trial && <TrialBanner trial={trial} />}
+
+          {/* Locked template — a demo card past the free trial. Read-only until
+              an order activates it. */}
+          {isLocked ? (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-3.5">
+              <div className="flex items-center gap-2.5 text-sm text-red-800">
+                <Lock className="h-4 w-4 shrink-0" />
                 <span>
-                  <span className="font-semibold">Demo card.</span> Your edits are saved, but order this card to ship a physical NFC card linked to this profile.
+                  <span className="font-semibold">Template locked.</span> Your free trial has ended, so this template is read-only. Place an order to activate it and edit again.
                 </span>
               </div>
               <Link
-                href={`/dashboard/orders?new=1`}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-amber-700"
+                href={orderThisCardHref}
+                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-700"
               >
-                <ShoppingBag className="h-3.5 w-3.5" /> Order this card
+                <ShoppingBag className="h-3.5 w-3.5" /> Order to activate
               </Link>
             </div>
+          ) : (
+            /* Demo card notice — this profile has no ordered NFC card yet. */
+            isDemo && (
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5">
+                <div className="flex items-center gap-2.5 text-sm text-amber-800">
+                  <CreditCard className="h-4 w-4 shrink-0" />
+                  <span>
+                    <span className="font-semibold">Demo card.</span> Your edits are saved, but order this card to ship a physical NFC card linked to this profile.
+                  </span>
+                </div>
+                <Link
+                  href={orderThisCardHref}
+                  className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-amber-700"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5" /> Order this card
+                </Link>
+              </div>
+            )
           )}
           {/* ── Template carousel ── */}
           {filtered.length === 0 ? (
@@ -908,12 +1065,15 @@ export default function ThemesPage() {
                       <Smartphone className="h-4 w-4" />
                     </button>
                   </div>
-                  {/* Single primary action — opens the edit form which also publishes */}
+                  {/* Single primary action — opens the edit form which also
+                      publishes. Disabled while a template is locked (trial ended). */}
                   <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/15 transition hover:bg-gray-800 active:scale-[0.98]"
+                    onClick={() => !isLocked && setEditing(true)}
+                    disabled={isLocked}
+                    title={isLocked ? "Locked — place an order to activate this template" : undefined}
+                    className="flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-gray-900/15 transition hover:bg-gray-800 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-900 disabled:active:scale-100"
                   >
-                    <SquarePen className="h-[18px] w-[18px]" /> Edit &amp; Publish
+                    {isLocked ? <Lock className="h-[18px] w-[18px]" /> : <SquarePen className="h-[18px] w-[18px]" />} Edit &amp; Publish
                   </button>
                 </div>
               </div>
@@ -970,10 +1130,16 @@ export default function ThemesPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setEditing(true)}
-                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                  onClick={() => !isLocked && setEditing(true)}
+                  disabled={isLocked}
+                  title={isLocked ? "Locked — place an order to activate this template" : undefined}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                 >
-                  <SquarePen className="h-3.5 w-3.5" /> {selectedCard?.slug ? "Edit link & content" : "Set link & content"}
+                  {isLocked ? (
+                    <><Lock className="h-3.5 w-3.5" /> Locked — order to activate</>
+                  ) : (
+                    <><SquarePen className="h-3.5 w-3.5" /> {selectedCard?.slug ? "Edit link & content" : "Set link & content"}</>
+                  )}
                 </button>
               </div>
 

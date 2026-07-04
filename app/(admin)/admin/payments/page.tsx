@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, Wallet, CheckCircle2, Clock, CreditCard, Check, X, ImageOff } from "lucide-react";
 import { formatNpr } from "@/lib/currency";
 import PaymentLogo from "@/components/ui/PaymentLogo";
+import { PageHeader, StatCard, Tabs, EmptyState } from "@/components/admin/ui";
 
 type AdminOrder = {
   id: string;
@@ -98,48 +99,37 @@ export default function AdminPaymentsPage() {
 
   return (
     <div className="px-6 py-8 md:px-8 md:py-10">
-      <h1 className="text-2xl font-bold text-foreground">Payments</h1>
-      <p className="mt-1 text-subtext">Review payment proofs and set each order paid or unpaid.</p>
+      <PageHeader
+        icon={CreditCard}
+        eyebrow="Finance"
+        title="Payments"
+        subtitle="Review payment proofs and set each order paid or unpaid."
+      />
 
       {/* Totals */}
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        {[
-          { label: "Total Collected", value: formatNpr(totals.collected), icon: Wallet, color: "text-emerald-600 bg-emerald-50" },
-          { label: "Paid Orders", value: String(totals.paidCount), icon: CheckCircle2, color: "text-green-600 bg-green-50" },
-          { label: "Awaiting Approval", value: String(totals.pending), icon: Clock, color: "text-amber-600 bg-amber-50" },
-        ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="rounded-2xl border border-gray-200 bg-white p-5">
-            <div className={`inline-flex rounded-lg p-2 ${color}`}><Icon className="h-5 w-5" /></div>
-            <p className="mt-3 text-2xl font-bold text-foreground">{value}</p>
-            <p className="mt-1 text-sm text-subtext">{label}</p>
-          </div>
-        ))}
+        <StatCard label="Total Collected" value={formatNpr(totals.collected)} icon={Wallet} grad="from-emerald-500 to-teal-500" />
+        <StatCard label="Paid Orders" value={String(totals.paidCount)} icon={CheckCircle2} grad="from-green-500 to-emerald-500" />
+        <StatCard label="Awaiting Approval" value={String(totals.pending)} icon={Clock} grad="from-amber-500 to-orange-500" />
       </div>
 
       {/* Filter */}
-      <div className="mt-6 flex flex-wrap gap-2">
-        {(["ALL", ...PAY_STATES] as Filter[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className={`rounded-lg px-3.5 py-1.5 text-sm font-medium transition ${
-              filter === f ? "bg-gray-900 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
-            }`}
-          >
-            {f === "ALL" ? "All" : PAY_LABEL[f]}
-          </button>
-        ))}
+      <div className="mt-6">
+        <Tabs
+          value={filter}
+          onChange={(k) => setFilter(k as Filter)}
+          tabs={(["ALL", ...PAY_STATES] as Filter[]).map((f) => ({
+            key: f,
+            label: f === "ALL" ? "All" : PAY_LABEL[f],
+          }))}
+        />
       </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
         {loading ? (
           <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <CreditCard className="h-9 w-9 text-gray-300" />
-            <p className="mt-3 text-sm font-medium text-foreground">No payments to show</p>
-          </div>
+          <EmptyState icon={CreditCard} title="No payments to show" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

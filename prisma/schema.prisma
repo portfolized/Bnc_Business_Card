@@ -20,8 +20,17 @@ model User {
   referralCode    String?   @unique
   referredById    String?
   affiliatePaidNpr Float    @default(0)
+  // Affiliate program: users must apply and be approved before they get a code.
+  // Rates are fractions (0.10 = 10%); null means "use the global default".
+  affiliateStatus       String    @default("NONE") // NONE | PENDING | APPROVED | REJECTED
+  affiliateAppliedAt    DateTime?
+  affiliateApprovedAt   DateTime?
+  affiliateRate         Float?    // per-person commission override
+  affiliateDiscountRate Float?    // per-person buyer-discount override
+  affiliateNote         String?   // applicant's message / admin's reject reason
   referredBy      User?     @relation("Referrals", fields: [referredById], references: [id])
   referrals       User[]    @relation("Referrals")
+  affiliateOrders Order[]   @relation("AffiliateOrders")
   accounts        Account[]
   sessions        Session[]
   profiles        Profile[]
@@ -118,8 +127,15 @@ model Order {
   backImageUrl    String?
   quantity        Int         @default(1)
   shippingAddress Json        @default("{}")
-  totalAmount     Float       @default(0)
+  totalAmount     Float       @default(0)  // final charged: (unit × qty) − discountAmount
   notes           String?
+  // Affiliate attribution (set at checkout when a valid code is used). Rates are
+  // locked in as amounts so later rate changes don't rewrite past orders.
+  affiliateId      String?
+  affiliateCode    String?
+  discountAmount   Float      @default(0)  // buyer discount applied via the code
+  commissionAmount Float      @default(0)  // commission owed to the affiliate
+  affiliate        User?      @relation("AffiliateOrders", fields: [affiliateId], references: [id], onDelete: SetNull)
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   profile         Profile?    @relation(fields: [profileId], references: [id], onDelete: SetNull)
   createdAt       DateTime    @default(now())

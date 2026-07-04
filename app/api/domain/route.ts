@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { canEditProfile } from "@/lib/trial";
 
 // Cards are uncapped, but a user may only claim this many domains (slugs).
 export const MAX_DOMAINS_PER_USER = 10;
@@ -55,6 +56,13 @@ export async function PUT(req: NextRequest) {
   }
 
   const profile = await resolveProfile(session.user.id, profileId);
+
+  // A locked (expired free) template can't claim or change its domain until an
+  // order activates it.
+  const edit = await canEditProfile(session.user.id, profile.id);
+  if (!edit.ok) {
+    return NextResponse.json({ error: edit.reason }, { status: 403 });
+  }
 
   const existing = await prisma.profile.findUnique({ where: { slug } });
   if (existing && existing.id !== profile.id) {

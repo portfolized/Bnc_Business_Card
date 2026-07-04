@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { ShieldCheck, ChevronRight } from "lucide-react";
+import { ShieldCheck, ChevronRight, Users, UserCog, ShoppingBag } from "lucide-react";
+import { PageHeader, StatCard } from "@/components/admin/ui";
 
 async function getUsers() {
   return prisma.user.findMany({
@@ -19,11 +20,23 @@ async function getUsers() {
 
 export default async function AdminUsersPage() {
   const users = await getUsers();
+  const adminCount = users.filter((u) => u.role === "admin").length;
+  const withOrders = users.filter((u) => u._count.orders > 0).length;
 
   return (
     <div className="px-6 py-8 md:px-8 md:py-10">
-      <h1 className="text-2xl font-bold text-foreground">Users</h1>
-      <p className="mt-1 text-subtext">{users.length} registered user{users.length !== 1 ? "s" : ""}. Click a user to see everything about them.</p>
+      <PageHeader
+        icon={Users}
+        eyebrow="People"
+        title="Users"
+        subtitle="Everyone registered on BNC. Click a user to see everything about them."
+      />
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <StatCard label="Total Users" value={users.length} icon={Users} grad="from-violet-500 to-purple-500" />
+        <StatCard label="Admins" value={adminCount} icon={UserCog} grad="from-indigo-500 to-blue-500" />
+        <StatCard label="Customers (with orders)" value={withOrders} icon={ShoppingBag} grad="from-emerald-500 to-teal-500" />
+      </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white">
         <div className="overflow-x-auto">

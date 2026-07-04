@@ -321,9 +321,13 @@ export default function OrdersPage() {
 
   useEffect(() => { refresh(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
-  // If we arrived from the landing "Order Now" flow, pre-fill the modal.
+  // If we arrived from the landing "Order Now" flow, pre-fill the modal. Also
+  // handles "Order to activate" from the Themes page, which passes ?profileId to
+  // attach (and activate) that specific template.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("new") !== "1") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") !== "1") return;
+    const profileId = params.get("profileId");
     let pending: PendingCard | null = null;
     try {
       const raw = localStorage.getItem(PENDING_CARD_KEY);
@@ -331,8 +335,9 @@ export default function OrdersPage() {
     } catch {
       pending = null;
     }
+    const initial: Partial<NewOrderForm> = {};
     if (pending) {
-      setPrefill({
+      Object.assign(initial, {
         fullName: pending.info?.fullName ?? "",
         email: pending.info?.email ?? "",
         phone: pending.info?.phone ?? "",
@@ -346,9 +351,13 @@ export default function OrdersPage() {
         ...(pending.quantity ? { quantity: pending.quantity } : {}),
         ...(typeof pending.qrEnabled === "boolean" ? { qrEnabled: pending.qrEnabled } : {}),
         ...(pending.slug ? { slug: pending.slug } : {}),
+        ...(pending.affiliateCode ? { affiliateCode: pending.affiliateCode } : {}),
       });
       localStorage.removeItem(PENDING_CARD_KEY);
     }
+    // Preselect the card to activate (overrides "new" so the order links to it).
+    if (profileId) initial.profileId = profileId;
+    if (Object.keys(initial).length > 0) setPrefill(initial);
     setCreating(true);
     // Clear the ?new=1 param so a refresh doesn't reopen the modal.
     router.replace("/dashboard/orders");

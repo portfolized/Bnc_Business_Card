@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { CARD_PRICE_NPR, DEFAULT_CARD_PRICES, type CardPrices } from "@/lib/currency";
+import {
+  CARD_PRICE_NPR,
+  DEFAULT_CARD_PRICES,
+  AFFILIATE_RATE,
+  AFFILIATE_DISCOUNT_RATE,
+  type CardPrices,
+} from "@/lib/currency";
 
 // Setting keys for each card price. `cardPriceNpr` is the Business price and is
 // kept as-is for backward compatibility.
@@ -52,4 +58,52 @@ export async function setCardPrices(partial: Partial<CardPrices>): Promise<CardP
     });
   await Promise.all(updates);
   return getCardPrices();
+}
+
+// ─── Affiliate program rates ─────────────────────────────────────────────────
+// Global "all persons" rates, stored as fractions (0.10 = 10%). A per-affiliate
+// override on the User row takes precedence over these (see @/lib/affiliate).
+
+export type AffiliateRates = {
+  commission: number; // paid to the affiliate
+  discount: number; // taken off the buyer's total
+};
+
+const AFFILIATE_KEYS = {
+  commission: "affiliateRate",
+  discount: "affiliateDiscountRate",
+} as const;
+
+const clampRate = (n: number) => Math.min(1, Math.max(0, n));
+
+/** Global affiliate commission + buyer-discount rates, with defaults for unset keys. */
+export async function getAffiliateRates(): Promise<AffiliateRates> {
+  const rows = await prisma.setting.findMany({
+    where: { key: { in: Object.values(AFFILIATE_KEYS) } },
+  });
+  const byKey = new Map(rows.map((r) => [r.key, Number(r.value)]));
+  const pick = (key: string, def: number) => {
+    const n = byKey.get(key);
+    return typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1 ? n : def;
+  };
+  return {
+    commission: pick(AFFILIATE_KEYS.commission, AFFILIATE_RATE),
+    discount: pick(AFFILIATE_KEYS.discount, AFFILIATE_DISCOUNT_RATE),
+  };
+}
+
+/** Upsert any subset of the global affiliate rates; ignores out-of-range values. */
+export async function setAffiliateRates(partial: Partial<AffiliateRates>): Promise<AffiliateRates> {
+  const updates = (Object.entries(partial) as [keyof AffiliateRates, number][])
+    .filter(([, v]) => Number.isFinite(v) && v >= 0 && v <= 1)
+    .map(([k, v]) => {
+      const value = String(clampRate(v));
+      return prisma.setting.upsert({
+        where: { key: AFFILIATE_KEYS[k] },
+        create: { key: AFFILIATE_KEYS[k], value },
+        update: { value },
+      });
+    });
+  await Promise.all(updates);
+  return getAffiliateRates();
 }

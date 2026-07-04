@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ChevronDown, Loader2, Wallet } from "lucide-react";
+import { ChevronDown, Loader2, Wallet, Ticket, Check, X } from "lucide-react";
 import { CARD_TEMPLATES } from "./templateRegistry";
 import { PENDING_CARD_KEY, type PersonalInfo } from "./types";
 import OrderCardPreview from "./OrderCardPreview";
@@ -36,6 +36,7 @@ export type NewOrderForm = {
   cardTemplate: string;
   quantity: number;
   qrEnabled: boolean;
+  affiliateCode: string; // optional affiliate/referral code applied to this order
 };
 
 export const EMPTY_ORDER_FORM: NewOrderForm = {
@@ -53,6 +54,7 @@ export const EMPTY_ORDER_FORM: NewOrderForm = {
   cardTemplate: CARD_TEMPLATES[0].id,
   quantity: 1,
   qrEnabled: false,
+  affiliateCode: "",
 };
 
 type CardOption = { id: string; label: string; slug: string | null; ordered?: boolean };
@@ -85,8 +87,22 @@ export default function OrderForm({
   const [step, setStep] = useState<"details" | "payment">("details");
   const set = (patch: Partial<NewOrderForm>) => setForm((p) => ({ ...p, ...patch }));
 
+  // Live affiliate-code check, tagged with the code it applies to so stale
+  // responses are ignored. `null` = not checked / empty.
+  const [affCheck, setAffCheck] = useState<
+    | { code: string; valid: true; discountRate: number; affiliateName: string }
+    | { code: string; valid: false; reason?: string }
+    | null
+  >(null);
+
   // Unit price depends on the chosen card type / VIP tier.
   const unitPrice = resolveCardUnitPrice(prices, form.cardType, form.cardType === "VIP" ? form.cardTier : null);
+  const subtotal = unitPrice * form.quantity;
+  const affCode = form.affiliateCode.trim().toUpperCase();
+  // Discount only when the current code matches a validated, approved affiliate.
+  const affValid = affCheck?.code === affCode && affCheck.valid ? affCheck : null;
+  const discountAmount = affValid ? Math.round(subtotal * affValid.discountRate) : 0;
+  const total = Math.max(0, subtotal - discountAmount);
 
   useEffect(() => {
     fetch("/api/cards")
@@ -97,7 +113,38 @@ export default function OrderForm({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d && d.prices) setPrices(d.prices as CardPrices); })
       .catch(() => {});
+    // Pre-fill the affiliate code with whoever referred this buyer at signup.
+    if (!initial?.affiliateCode) {
+      fetch("/api/affiliate/referrer")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (d?.code) setForm((p) => (p.affiliateCode ? p : { ...p, affiliateCode: d.code })); })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Debounced validation of the affiliate code (setState only inside the
+  // deferred callback, so it never cascades renders from the effect body).
+  useEffect(() => {
+    if (!affCode) { setAffCheck(null); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/affiliate/validate?code=${encodeURIComponent(affCode)}`);
+        if (!res.ok || cancelled) return;
+        const d = await res.json();
+        if (cancelled) return;
+        setAffCheck(
+          d.valid
+            ? { code: affCode, valid: true, discountRate: d.discountRate ?? 0, affiliateName: d.affiliateName ?? "an affiliate" }
+            : { code: affCode, valid: false, reason: d.reason }
+        );
+      } catch {
+        // ignore — treated as "checking" until a response arrives
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [affCode]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +175,7 @@ export default function OrderForm({
           quantity: form.quantity,
           qrEnabled: form.qrEnabled,
           slug: form.slug,
+          affiliateCode: form.affiliateCode,
         }));
       } catch {
         // ignore storage failures; the order form still reopens empty
@@ -160,8 +208,12 @@ export default function OrderForm({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <PaymentPanel
-          amountNpr={unitPrice * form.quantity}
-          payload={{ ...form, profileId: form.profileId === "new" ? null : form.profileId }}
+          amountNpr={total}
+          payload={{
+            ...form,
+            profileId: form.profileId === "new" ? null : form.profileId,
+            affiliateCode: affValid ? affCode : "",
+          }}
           onBack={() => setStep("details")}
           onSuccess={() => (onDone ? onDone() : router.push("/dashboard/orders"))}
         />
@@ -316,6 +368,48 @@ export default function OrderForm({
               </div>
             )}
           </div>
+
+          {/* Affiliate code — optional. Applies the affiliate's buyer discount
+              and credits their commission on this order. */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Affiliate code <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <div className="relative">
+              <Ticket className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={form.affiliateCode}
+                onChange={(e) => set({ affiliateCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
+                placeholder="Have a code? Enter it"
+                maxLength={16}
+                className={`${inputCls} pl-9 pr-9 uppercase tracking-wider`}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                {affCode && affCheck?.code !== affCode ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                ) : affValid ? (
+                  <Check className="h-4 w-4 text-emerald-500" />
+                ) : affCheck?.code === affCode && !affCheck.valid ? (
+                  <X className="h-4 w-4 text-red-500" />
+                ) : null}
+              </span>
+            </div>
+            {affValid ? (
+              <p className="mt-1.5 text-[11px] font-medium text-emerald-600">
+                {discountAmount > 0
+                  ? `✓ ${Math.round(affValid.discountRate * 100)}% off applied — supporting ${affValid.affiliateName}.`
+                  : `✓ Code applied — supporting ${affValid.affiliateName}.`}
+              </p>
+            ) : affCheck?.code === affCode && !affCheck.valid ? (
+              <p className="mt-1.5 text-[11px] font-medium text-red-500">
+                {affCheck.reason === "self"
+                  ? "You can't use your own affiliate code."
+                  : "That code isn't valid."}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[11px] text-gray-400">Support a friend — their code gives you their discount.</p>
+            )}
+          </div>
         </div>
 
         {/* ── Right: live preview (both faces) ── */}
@@ -339,11 +433,27 @@ export default function OrderForm({
 
       {/* ── Footer ── */}
       <div className="space-y-3 border-t border-gray-100 px-6 py-4">
-        <div className="flex items-center justify-between rounded-lg bg-gray-50 px-3.5 py-2.5 text-sm">
-          <span className="text-gray-500">
-            {cardTypeLabel(form.cardType, form.cardTier)} · {formatNpr(unitPrice)} × {form.quantity}
-          </span>
-          <span className="text-base font-bold text-gray-900">{formatNpr(unitPrice * form.quantity)}</span>
+        <div className="rounded-lg bg-gray-50 px-3.5 py-2.5 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500">
+              {cardTypeLabel(form.cardType, form.cardTier)} · {formatNpr(unitPrice)} × {form.quantity}
+            </span>
+            <span className={discountAmount > 0 ? "text-gray-500" : "text-base font-bold text-gray-900"}>
+              {formatNpr(subtotal)}
+            </span>
+          </div>
+          {discountAmount > 0 && (
+            <>
+              <div className="mt-1.5 flex items-center justify-between text-emerald-600">
+                <span>Affiliate discount ({Math.round((affValid?.discountRate ?? 0) * 100)}%)</span>
+                <span>−{formatNpr(discountAmount)}</span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between border-t border-gray-200 pt-1.5">
+                <span className="font-medium text-gray-700">Total</span>
+                <span className="text-base font-bold text-gray-900">{formatNpr(total)}</span>
+              </div>
+            </>
+          )}
         </div>
         {error && <p className="text-sm text-red-500">{error}</p>}
         <div className="flex items-center justify-end gap-3">

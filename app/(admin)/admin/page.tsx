@@ -11,7 +11,7 @@ import {
   ArrowRight,
   BookOpen,
 } from "lucide-react";
-import { formatNpr, AFFILIATE_RATE } from "@/lib/currency";
+import { formatNpr } from "@/lib/currency";
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700",
@@ -28,7 +28,7 @@ async function getData() {
     pendingOrders,
     recentOrders,
     revenueAgg,
-    referredRevenueAgg,
+    commissionAgg,
     paidAgg,
     pendingArticles,
     pendingPosts,
@@ -40,8 +40,8 @@ async function getData() {
     prisma.order.count({ where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }),
     prisma.order.aggregate({ _sum: { totalAmount: true }, where: { status: "DELIVERED" } }),
     prisma.order.aggregate({
-      _sum: { totalAmount: true },
-      where: { status: "DELIVERED", user: { referredById: { not: null } } },
+      _sum: { commissionAmount: true },
+      where: { status: "DELIVERED", affiliateId: { not: null } },
     }),
     prisma.user.aggregate({ _sum: { affiliatePaidNpr: true } }),
     prisma.article.count({ where: { status: "PENDING" } }),
@@ -54,7 +54,7 @@ async function getData() {
   ]);
 
   const revenue = revenueAgg._sum.totalAmount ?? 0;
-  const earned = (referredRevenueAgg._sum.totalAmount ?? 0) * AFFILIATE_RATE;
+  const earned = commissionAgg._sum.commissionAmount ?? 0;
   const paid = paidAgg._sum.affiliatePaidNpr ?? 0;
 
   return {

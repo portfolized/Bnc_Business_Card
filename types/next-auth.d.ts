@@ -20,5 +20,8 @@ declare module "next-auth/jwt" {
     id: string;
     username: string;
     role: string;
+    // Epoch ms of the last time id/username/role were synced from the DB. Used
+    // to periodically re-sync so a session survives the user's row id changing.
+    syncedAt?: number;
   }
 }

@@ -9,6 +9,7 @@ import {
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import MotionWrapper from "./MotionWrapper";
 
 type Industry = {
@@ -108,15 +109,15 @@ function IndustryFlipCard({ item }: { item: Industry }) {
           </div>
 
           <div className="border-t border-gray-200/80 px-4 pb-4 pt-3">
-            <button
-              type="button"
+            <Link
+              href="/login"
               className="flex w-full items-center justify-between rounded-2xl bg-[#ececef] px-4 py-3 text-left transition-colors hover:bg-[#e4e4e8]"
             >
               <span className="text-sm font-semibold text-foreground">Start today</span>
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-primary shadow-sm">
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>

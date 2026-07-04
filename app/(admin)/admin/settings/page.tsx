@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Check, KeyRound, Tag, QrCode, Plus, Trash2, ChevronDown } from "lucide-react";
+import { Loader2, Check, KeyRound, Tag, QrCode, Plus, Trash2, ChevronDown, Settings as SettingsIcon } from "lucide-react";
 import { formatNpr, DEFAULT_CARD_PRICES, type CardPrices } from "@/lib/currency";
+import { PageHeader } from "@/components/admin/ui";
 import ImageUpload from "@/components/ui/ImageUpload";
 import PaymentLogo from "@/components/ui/PaymentLogo";
 import { PAYMENT_WALLETS, PAYMENT_BANKS, PAYMENT_OPTIONS } from "@/lib/paymentOptions";
@@ -423,8 +424,12 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="px-6 py-8 md:px-8 md:py-10">
-      <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-      <p className="mt-1 text-subtext">Manage pricing and your admin account.</p>
+      <PageHeader
+        icon={SettingsIcon}
+        eyebrow="Configuration"
+        title="Settings"
+        subtitle="Manage pricing, payment methods, and your admin account."
+      />
 
       <div className="mt-8">
         <CardPriceForm inputCls={inputCls} />

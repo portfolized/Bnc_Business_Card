@@ -13,7 +13,8 @@ import {
   Globe,
   Inbox,
 } from "lucide-react";
-import { formatNpr, AFFILIATE_RATE } from "@/lib/currency";
+import { formatNpr } from "@/lib/currency";
+import { earnedForAffiliate } from "@/lib/affiliate";
 
 const ORDER_STATUS: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700",
@@ -70,10 +71,9 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
   const user = await getUser(id);
   if (!user) notFound();
 
-  const earned = user.referrals.reduce(
-    (sum, r) => sum + r.orders.filter((o) => o.status === "DELIVERED").reduce((s, o) => s + o.totalAmount * AFFILIATE_RATE, 0),
-    0
-  );
+  // Commission earned from orders credited to this user's affiliate code
+  // (delivered orders), matching the per-order affiliate model.
+  const earned = await earnedForAffiliate(id);
   const due = Math.max(0, earned - user.affiliatePaidNpr);
 
   const stats = [

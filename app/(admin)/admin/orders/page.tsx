@@ -19,6 +19,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { formatNpr, cardTypeLabel, type CardType, type VipTier } from "@/lib/currency";
+import { PageHeader } from "@/components/admin/ui";
 import { downloadableImageUrl } from "@/lib/cloudinary";
 import { CARD_TEMPLATES } from "@/components/customize/templateRegistry";
 import OrderCardPreview from "@/components/customize/OrderCardPreview";
@@ -426,14 +427,14 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="px-6 py-8 md:px-8 md:py-10">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">All Orders</h1>
-        <p className="mt-1 text-subtext">
-          {loading ? "Loading..." : `${orders.length} order${orders.length !== 1 ? "s" : ""} total — click a row to see full details.`}
-        </p>
-      </div>
+      <PageHeader
+        icon={Package}
+        eyebrow="Fulfilment"
+        title="All Orders"
+        subtitle={loading ? "Loading…" : `${orders.length} order${orders.length !== 1 ? "s" : ""} total — click a row to see full details.`}
+      />
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-gray-400" />

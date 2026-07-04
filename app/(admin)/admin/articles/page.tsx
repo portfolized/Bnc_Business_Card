@@ -3,9 +3,10 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useState } from "react";
-import { Loader2, Check, X, Eye, ExternalLink, Image as ImageIcon, FileText, MessageSquare, Download } from "lucide-react";
+import { Loader2, Check, X, Eye, ExternalLink, Image as ImageIcon, FileText, MessageSquare, Download, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { downloadableImageUrl } from "@/lib/cloudinary";
+import { PageHeader } from "@/components/admin/ui";
 
 type AdminArticle = {
   id: string;
@@ -179,8 +180,12 @@ export default function AdminBlogPage() {
 
   return (
     <div className="px-6 py-8 md:px-8 md:py-10">
-      <h1 className="text-2xl font-bold text-foreground">Blog Moderation</h1>
-      <p className="mt-1 text-subtext">Approve or reject articles and posts. Only approved content is shown publicly.</p>
+      <PageHeader
+        icon={BookOpen}
+        eyebrow="Content"
+        title="Blog Moderation"
+        subtitle="Approve or reject articles and posts. Only approved content is shown publicly."
+      />
 
       {/* Content type tabs */}
       <div className="mt-6 flex flex-wrap gap-2">
