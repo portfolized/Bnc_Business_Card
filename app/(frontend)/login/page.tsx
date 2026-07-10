@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, getSession, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { homePathForRole, postLoginPath } from "@/lib/auth-routes";
 import Navbar from "@/components/Landing/Navbar";
 import AuthCard, {
   AuthDivider,
@@ -15,14 +16,15 @@ import AuthCard, {
 } from "@/components/auth/AuthCard";
 
 function safeNext() {
-  if (typeof window === "undefined") return "/dashboard";
+  if (typeof window === "undefined") return null;
   const next = new URLSearchParams(window.location.search).get("next");
   // Only allow internal redirects.
-  return next && next.startsWith("/") ? next : "/dashboard";
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : null;
 }
 
 export default function LoginPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
 
   // Persist a referral code if someone arrives here via a ?ref= link, so a
   // first-time Google sign-in still attributes the referrer.
@@ -32,6 +34,12 @@ export default function LoginPage() {
       document.cookie = `bnc_ref=${encodeURIComponent(ref.trim())}; max-age=2592000; path=/; samesite=lax`;
     }
   }, []);
+
+  // Already signed in — send admins to the admin console, everyone else to the dashboard.
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user) return;
+    router.replace(homePathForRole(session.user.role));
+  }, [status, session, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,14 +65,15 @@ export default function LoginPage() {
       return;
     }
 
-    router.push(safeNext());
+    const freshSession = await getSession();
+    router.push(postLoginPath(freshSession?.user?.role, safeNext()));
     router.refresh();
   }
 
   async function handleGoogleSignIn() {
     setError(null);
     setGoogleLoading(true);
-    await signIn("google", { callbackUrl: safeNext() });
+    await signIn("google", { callbackUrl: postLoginPath(undefined, safeNext()) });
   }
 
   return (

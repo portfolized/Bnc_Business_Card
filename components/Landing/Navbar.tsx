@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, LayoutDashboard, Menu, X } from "lucide-react";
 import Logo from "./Logo";
 import { useSession } from "next-auth/react";
+import { homePathForRole } from "@/lib/auth-routes";
 
 const navLinks = [
   { label: "How it works", href: "#how-it-works" },
@@ -17,6 +18,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { data: session } = useSession();
+  const dashboardHref = homePathForRole(session?.user?.role);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -58,7 +60,7 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           {session?.user ? (
             <Link
-              href="/dashboard"
+              href={dashboardHref}
               className="hidden items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 sm:flex"
             >
               <LayoutDashboard className="h-4 w-4" />
@@ -110,7 +112,7 @@ export default function Navbar() {
             {session?.user ? (
               <li>
                 <Link
-                  href="/dashboard"
+                  href={dashboardHref}
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-1.5 py-1 text-sm font-medium text-primary"
                 >

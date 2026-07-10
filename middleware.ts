@@ -34,8 +34,14 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/admin", req.nextUrl));
   }
 
+  // Admins use the admin console, not the user dashboard.
+  if (isLoggedIn && role === "admin" && pathname.startsWith("/dashboard")) {
+    return NextResponse.redirect(new URL("/admin", req.nextUrl));
+  }
+
   if (isLoggedIn && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+    const dest = role === "admin" ? "/admin" : "/dashboard";
+    return NextResponse.redirect(new URL(dest, req.nextUrl));
   }
 });
 
