@@ -18,6 +18,8 @@ import {
   Loader2,
   MessageSquare,
 } from "lucide-react";
+import ProfileBlogSection from "./ProfileBlogSection";
+import type { ProfileBlogItem } from "./ProfileBlogSection";
 
 // ─── Scaled hero ─────────────────────────────────────────────────────────────
 
@@ -212,10 +214,12 @@ export default function ProfileView({
   profile,
   templateId,
   username,
+  blogs,
 }: {
   profile: Profile;
   templateId: string;
   username: string;
+  blogs: ProfileBlogItem[];
 }) {
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
   const Component = template.Component;
@@ -246,6 +250,19 @@ export default function ProfileView({
           <ChevronDown className="h-5 w-5 animate-bounce" />
         </button>
       </section>
+
+      {/* ── Blog / Articles Section ── */}
+      {blogs.length > 0 && (
+        <section className={`px-6 py-20 md:px-8 ${cfg.sectionBg}`}>
+          <div className="mx-auto max-w-6xl">
+            <ProfileBlogSection
+              items={blogs}
+              accent={profile.accent}
+              dark={cfg.dark}
+            />
+          </div>
+        </section>
+      )}
 
       {/* ── Contact / Lead form ── */}
       <section id="contact-section" className={`px-6 py-20 md:px-8 ${cfg.sectionBg}`}>

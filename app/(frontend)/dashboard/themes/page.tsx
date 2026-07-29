@@ -75,6 +75,7 @@ const DEFAULT_PROFILE: Profile = {
   greeting: "",
   ctaPrimary: "",
   ctaSecondary: "",
+  socialLinks: [] as { platform: string; url: string }[],
 };
 
 // ─── Scaled preview ────────────────────────────────────────────────────────────
@@ -382,6 +383,73 @@ function EditDrawer({
 
           <div className="h-px bg-gray-100" />
 
+          {/* Social links */}
+          <div className="space-y-3">
+            <SectionTitle><Globe className="h-3.5 w-3.5" /> Social Links</SectionTitle>
+            <p className="text-[11px] text-gray-400">
+              Add your social media profiles — these will appear as icons on your card.
+            </p>
+
+            {(profile.socialLinks || []).map((link, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <select
+                  value={link.platform}
+                  onChange={(e) => {
+                    const next = [...(profile.socialLinks || [])];
+                    next[i] = { ...next[i], platform: e.target.value };
+                    onChange({ socialLinks: next });
+                  }}
+                  className="w-[130px] shrink-0 rounded-lg border border-gray-200 px-2.5 py-2 text-xs text-gray-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">Platform</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="twitter">Twitter / X</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="github">GitHub</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="whatsapp">WhatsApp</option>
+                </select>
+                <input
+                  value={link.url}
+                  onChange={(e) => {
+                    const next = [...(profile.socialLinks || [])];
+                    next[i] = { ...next[i], url: e.target.value };
+                    onChange({ socialLinks: next });
+                  }}
+                  placeholder="https://..."
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-800 outline-none placeholder:text-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = [...(profile.socialLinks || [])];
+                    next.splice(i, 1);
+                    onChange({ socialLinks: next });
+                  }}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500"
+                  title="Remove"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => {
+                const next = [...(profile.socialLinks || []), { platform: "", url: "" }];
+                onChange({ socialLinks: next });
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs font-medium text-gray-500 transition hover:border-gray-400 hover:text-gray-700"
+            >
+              <span className="text-base leading-none">+</span> Add social link
+            </button>
+          </div>
+
+          <div className="h-px bg-gray-100" />
+
           {/* accent */}
           <div className="space-y-2">
             <SectionTitle><Palette className="h-3.5 w-3.5" /> Accent color</SectionTitle>
@@ -626,20 +694,21 @@ export default function ThemesPage() {
         if (res.ok && !cancelled) {
           const data = await res.json();
           setProfile({
-            fullName: data.fullName || DEFAULT_PROFILE.fullName,
-            role: data.role || DEFAULT_PROFILE.role,
-            bio: data.bio || DEFAULT_PROFILE.bio,
-            email: data.email || DEFAULT_PROFILE.email,
-            phone: data.phone || DEFAULT_PROFILE.phone,
-            website: data.website || DEFAULT_PROFILE.website,
-            location: data.location || DEFAULT_PROFILE.location,
-            avatarUrl: data.avatarUrl || "",
-            accent: data.accent || DEFAULT_PROFILE.accent,
+            fullName: data.fullName ?? DEFAULT_PROFILE.fullName,
+            role: data.role ?? DEFAULT_PROFILE.role,
+            bio: data.bio ?? DEFAULT_PROFILE.bio,
+            email: data.email ?? DEFAULT_PROFILE.email,
+            phone: data.phone ?? DEFAULT_PROFILE.phone,
+            website: data.website ?? DEFAULT_PROFILE.website,
+            location: data.location ?? DEFAULT_PROFILE.location,
+            avatarUrl: data.avatarUrl ?? "",
+            accent: data.accent ?? DEFAULT_PROFILE.accent,
             headline: data.headline ?? "",
             skills: data.skills ?? "",
             greeting: data.greeting ?? "",
             ctaPrimary: data.ctaPrimary ?? "",
             ctaSecondary: data.ctaSecondary ?? "",
+            socialLinks: Array.isArray(data.socialLinks) ? data.socialLinks : [],
           });
           const savedTemplate = TEMPLATES.find((t) => t.id === data.cardTemplate);
           const tid = savedTemplate?.id ?? TEMPLATES[0].id;

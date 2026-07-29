@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
     greeting: profile.greeting,
     ctaPrimary: profile.ctaPrimary,
     ctaSecondary: profile.ctaSecondary,
+    socialLinks: profile.socialLinks,
   });
 }
 
@@ -78,6 +79,7 @@ export async function PUT(req: NextRequest) {
     greeting,
     ctaPrimary,
     ctaSecondary,
+    socialLinks,
   } = body;
 
   const profile = await resolveProfile(session.user.id, profileId);
@@ -107,6 +109,7 @@ export async function PUT(req: NextRequest) {
       greeting: greeting !== undefined ? greeting : profile.greeting,
       ctaPrimary: ctaPrimary !== undefined ? ctaPrimary : profile.ctaPrimary,
       ctaSecondary: ctaSecondary !== undefined ? ctaSecondary : profile.ctaSecondary,
+      socialLinks: socialLinks !== undefined ? socialLinks : profile.socialLinks,
     },
   });
 
