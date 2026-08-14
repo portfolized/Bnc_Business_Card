@@ -13,6 +13,7 @@ import AuthCard, {
   googleButtonClassName,
   inputClassName,
 } from "@/components/auth/AuthCard";
+import PasswordInput from "@/components/ui/PasswordInput";
 
 function safeNext() {
   if (typeof window === "undefined") return "/dashboard";
@@ -160,9 +161,8 @@ export default function SignupPage() {
               <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground/90">
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { formatNpr } from "@/lib/currency";
 import { earnedForAffiliate } from "@/lib/affiliate";
+import ResetPassword from "./ResetPassword";
 
 const ORDER_STATUS: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700",
@@ -119,6 +120,9 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
               </Link>
             </p>
           )}
+        </div>
+        <div className="sm:ml-auto">
+          <ResetPassword userId={user.id} />
         </div>
       </div>
 

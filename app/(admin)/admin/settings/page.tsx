@@ -6,6 +6,7 @@ import { formatNpr, DEFAULT_CARD_PRICES, type CardPrices } from "@/lib/currency"
 import { PageHeader } from "@/components/admin/ui";
 import ImageUpload from "@/components/ui/ImageUpload";
 import PaymentLogo from "@/components/ui/PaymentLogo";
+import PasswordInput from "@/components/ui/PasswordInput";
 import { PAYMENT_WALLETS, PAYMENT_BANKS, PAYMENT_OPTIONS } from "@/lib/paymentOptions";
 
 // ─── Payment methods ─────────────────────────────────────────────────────────
@@ -453,8 +454,7 @@ export default function AdminSettingsPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Current password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
               placeholder="••••••••"
@@ -464,8 +464,7 @@ export default function AdminSettingsPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">New password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={next}
               onChange={(e) => setNext(e.target.value)}
               placeholder="At least 6 characters"
@@ -476,8 +475,7 @@ export default function AdminSettingsPage() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Confirm new password</label>
-            <input
-              type="password"
+            <PasswordInput
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Re-enter new password"
