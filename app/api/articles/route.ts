@@ -11,7 +11,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     select: {
       id: true, title: true, content: true, excerpt: true,
-      imageUrl: true, tags: true, readTime: true, published: true, status: true,
+      imageUrl: true, tags: true, readTime: true, published: true, status: true, visibility: true,
       views: true, createdAt: true,
       user: { select: { name: true, username: true, image: true } },
     },
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { title, content, excerpt, imageUrl, tags, readTime, published } = await req.json();
+  const { title, content, excerpt, imageUrl, tags, readTime, published, visibility } = await req.json();
 
   if (!title?.trim() || !content?.trim()) {
     return NextResponse.json({ error: "title and content are required" }, { status: 400 });
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       tags: tags?.trim() ?? "",
       readTime: readTime?.trim() || "5 min read",
       published: published ?? false,
+      visibility: visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC",
     },
   });
 

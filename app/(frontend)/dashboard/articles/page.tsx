@@ -8,7 +8,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   Heading2, List, ListOrdered, Quote, Link as LinkIcon,
   ImagePlus, MoreHorizontal, X, Share2, Check, Loader2,
-  Eye, EyeOff,
+  Eye, EyeOff, Globe, Lock,
 } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -35,6 +35,7 @@ type Article = {
   readTime: string;
   published: boolean;
   status: string;
+  visibility: string;
   views: number;
   createdAt: string;
   user: { name: string | null; username: string | null; image: string | null };
@@ -86,11 +87,13 @@ function ArticleCard({
   sessionImage,
   onDelete,
   onTogglePublish,
+  onToggleVisibility,
 }: {
   article: Article;
   sessionImage?: string | null;
   onDelete: (id: string) => void;
   onTogglePublish: (id: string, published: boolean) => void;
+  onToggleVisibility: (id: string, visibility: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -174,6 +177,20 @@ function ArticleCard({
           >
             {article.published ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             {article.published ? "Published" : "Draft"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onToggleVisibility(article.id, article.visibility === "PRIVATE" ? "PUBLIC" : "PRIVATE")}
+            title={article.visibility === "PRIVATE" ? "Private — only on your profile" : "Public — shown on the landing page"}
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+              article.visibility === "PRIVATE"
+                ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+            }`}
+          >
+            {article.visibility === "PRIVATE" ? <Lock className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}
+            {article.visibility === "PRIVATE" ? "Private" : "Public"}
           </button>
 
           <button
@@ -267,6 +284,7 @@ export default function ArticlesPage() {
   const [tags, setTags] = useState("");
   const [readTime, setReadTime] = useState("5 min read");
   const [published, setPublished] = useState(false);
+  const [visibility, setVisibility] = useState("PUBLIC");
   const [showMeta, setShowMeta] = useState(false);
 
   const [articles, setArticles] = useState<Article[]>([]);
@@ -335,6 +353,7 @@ export default function ArticlesPage() {
           tags,
           readTime,
           published,
+          visibility,
         }),
       });
       if (res.ok) {
@@ -346,6 +365,7 @@ export default function ArticlesPage() {
         setTags("");
         setReadTime("5 min read");
         setPublished(false);
+        setVisibility("PUBLIC");
         syncState();
       }
     } finally {
@@ -369,6 +389,18 @@ export default function ArticlesPage() {
     }
   };
 
+  const handleToggleVisibility = async (id: string, newVisibility: string) => {
+    const res = await fetch(`/api/articles/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: newVisibility }),
+    });
+    if (res.ok) {
+      const updated: Article = await res.json();
+      setArticles((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    }
+  };
+
   return (
     <div className="min-h-full bg-gray-50 px-4 py-8 md:px-8 md:py-10">
       <div className="mx-auto max-w-3xl">
@@ -377,7 +409,7 @@ export default function ArticlesPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Published articles appear on the landing page. Share long-form content with your audience.
+            Public articles appear on the landing page. Private articles only show on your profile.
           </p>
         </div>
 
@@ -444,6 +476,34 @@ export default function ArticlesPage() {
               </button>
             </div>
           )}
+
+          {/* Visibility */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <div>
+              <p className="text-xs font-medium text-gray-700">Visibility</p>
+              <p className="mt-0.5 text-xs text-gray-400">Public shows on the landing page · private shows only on your profile.</p>
+            </div>
+            <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setVisibility("PUBLIC")}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  visibility === "PUBLIC" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Public
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibility("PRIVATE")}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  visibility === "PRIVATE" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Private
+              </button>
+            </div>
+          </div>
 
           {/* Optional meta */}
           {showMeta && (
@@ -537,6 +597,7 @@ export default function ArticlesPage() {
                   sessionImage={sessionImage}
                   onDelete={handleDelete}
                   onTogglePublish={handleTogglePublish}
+                  onToggleVisibility={handleToggleVisibility}
                 />
               ))}
             </div>

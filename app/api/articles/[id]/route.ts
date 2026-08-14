@@ -26,6 +26,7 @@ export async function PATCH(
       ...(body.tags !== undefined && { tags: body.tags.trim() }),
       ...(body.readTime !== undefined && { readTime: body.readTime.trim() }),
       ...(body.published !== undefined && { published: body.published }),
+      ...(body.visibility !== undefined && { visibility: body.visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC" }),
     },
   });
 

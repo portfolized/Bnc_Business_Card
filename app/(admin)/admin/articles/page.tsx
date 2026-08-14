@@ -18,6 +18,7 @@ type AdminArticle = {
   readTime: string;
   status: string;
   published: boolean;
+  visibility: string;
   views: number;
   createdAt: string;
   user: { name: string | null; username: string | null; email: string };
@@ -28,6 +29,7 @@ type AdminPost = {
   html: string;
   imageUrl: string | null;
   status: string;
+  visibility: string;
   createdAt: string;
   user: { name: string | null; username: string | null; email: string };
 };
@@ -82,6 +84,17 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[status] ?? STATUS_STYLES.PENDING}`}>
       {status.charAt(0) + status.slice(1).toLowerCase()}
+    </span>
+  );
+}
+
+function VisibilityBadge({ visibility }: { visibility: string }) {
+  const isPrivate = visibility === "PRIVATE";
+  return (
+    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+      isPrivate ? "border-amber-200 bg-amber-50 text-amber-700" : "border-blue-200 bg-blue-50 text-blue-700"
+    }`}>
+      {isPrivate ? "Private" : "Public"}
     </span>
   );
 }
@@ -236,7 +249,10 @@ export default function AdminBlogPage() {
                         By {a.user.name ?? a.user.username ?? a.user.email} · {a.views} views · {new Date(a.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <StatusBadge status={a.status} />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusBadge status={a.status} />
+                      <VisibilityBadge visibility={a.visibility} />
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ModerateButtons status={a.status} busy={busyId === a.id} onApprove={() => moderate(a.id, "approve")} onReject={() => moderate(a.id, "reject")} />
@@ -272,7 +288,10 @@ export default function AdminBlogPage() {
                         By {p.user.name ?? p.user.username ?? p.user.email} · {new Date(p.createdAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <StatusBadge status={p.status} />
+                    <div className="flex shrink-0 items-center gap-2">
+                      <StatusBadge status={p.status} />
+                      <VisibilityBadge visibility={p.visibility} />
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ModerateButtons status={p.status} busy={busyId === p.id} onApprove={() => moderate(p.id, "approve")} onReject={() => moderate(p.id, "reject")} />

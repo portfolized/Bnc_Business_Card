@@ -13,6 +13,7 @@ export async function GET() {
       html: true,
       imageUrl: true,
       status: true,
+      visibility: true,
       createdAt: true,
       user: { select: { name: true, username: true, email: true } },
     },

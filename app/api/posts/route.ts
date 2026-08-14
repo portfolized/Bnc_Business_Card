@@ -16,6 +16,7 @@ export async function GET() {
       html: true,
       imageUrl: true,
       status: true,
+      visibility: true,
       createdAt: true,
       user: { select: { name: true, username: true, image: true } },
     },
@@ -30,19 +31,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { html, imageUrl } = await req.json();
+  const { html, imageUrl, visibility } = await req.json();
 
   if (!html?.trim()) {
     return NextResponse.json({ error: "html is required" }, { status: 400 });
   }
 
   const post = await prisma.post.create({
-    data: { userId: session.user.id, html: html.trim(), imageUrl: imageUrl ?? null },
+    data: {
+      userId: session.user.id,
+      html: html.trim(),
+      imageUrl: imageUrl ?? null,
+      visibility: visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC",
+    },
     select: {
       id: true,
       html: true,
       imageUrl: true,
       status: true,
+      visibility: true,
       createdAt: true,
       user: { select: { name: true, username: true, image: true } },
     },

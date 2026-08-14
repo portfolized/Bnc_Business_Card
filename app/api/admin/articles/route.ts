@@ -18,6 +18,7 @@ export async function GET() {
       readTime: true,
       status: true,
       published: true,
+      visibility: true,
       views: true,
       createdAt: true,
       user: { select: { name: true, username: true, email: true } },

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const articles = await prisma.article.findMany({
-    where: { status: "APPROVED" },
+    where: { status: "APPROVED", visibility: "PUBLIC" },
     orderBy: { createdAt: "desc" },
     take: 9,
     select: {

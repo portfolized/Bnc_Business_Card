@@ -152,14 +152,15 @@ enum OrderStatus {
 }
 
 model Post {
-  id        String   @id @default(cuid())
-  userId    String
-  html      String
-  imageUrl  String?
-  status    String   @default("PENDING")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  html       String
+  imageUrl   String?
+  status     String   @default("PENDING")
+  visibility String   @default("PUBLIC") // PUBLIC (landing page) | PRIVATE (profile only)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Article {
@@ -171,9 +172,10 @@ model Article {
   imageUrl  String?
   tags      String   @default("")
   readTime  String   @default("5 min read")
-  published Boolean  @default(false)
-  status    String   @default("PENDING")
-  views     Int      @default(0)
+  published  Boolean  @default(false)
+  status     String   @default("PENDING")
+  visibility String   @default("PUBLIC") // PUBLIC (landing page) | PRIVATE (profile only)
+  views      Int      @default(0)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

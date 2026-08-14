@@ -20,6 +20,8 @@ import {
   Share2,
   Check,
   Loader2,
+  Globe,
+  Lock,
 } from "lucide-react";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -41,6 +43,7 @@ type Post = {
   html: string;
   imageUrl: string | null;
   status?: string;
+  visibility?: string;
   createdAt: string;
   user: { name: string | null; username: string | null; image: string | null };
 };
@@ -97,10 +100,12 @@ function PostCard({
   post,
   onDelete,
   sessionImage,
+  onToggleVisibility,
 }: {
   post: Post;
   onDelete: (id: string) => void;
   sessionImage?: string | null;
+  onToggleVisibility: (id: string, visibility: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -172,6 +177,21 @@ function PostCard({
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Visibility */}
+          <button
+            type="button"
+            onClick={() => onToggleVisibility(post.id, post.visibility === "PRIVATE" ? "PUBLIC" : "PRIVATE")}
+            title={post.visibility === "PRIVATE" ? "Private — only on your profile" : "Public — shown on the landing page"}
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+              post.visibility === "PRIVATE"
+                ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                : "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+            }`}
+          >
+            {post.visibility === "PRIVATE" ? <Lock className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}
+            {post.visibility === "PRIVATE" ? "Private" : "Public"}
+          </button>
+
           {/* Share */}
           <button
             type="button"
@@ -255,6 +275,7 @@ export default function PostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [publishing, setPublishing] = useState(false);
+  const [visibility, setVisibility] = useState("PUBLIC");
 
   // Load posts on mount
   useEffect(() => {
@@ -319,17 +340,30 @@ export default function PostsPage() {
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: el.innerHTML, imageUrl: imageDataUrl }),
+        body: JSON.stringify({ html: el.innerHTML, imageUrl: imageDataUrl, visibility }),
       });
       if (res.ok) {
         const post: Post = await res.json();
         setPosts((prev) => [post, ...prev]);
         el.innerHTML = "";
         setImageDataUrl(null);
+        setVisibility("PUBLIC");
         syncState();
       }
     } finally {
       setPublishing(false);
+    }
+  };
+
+  const handleToggleVisibility = async (id: string, newVisibility: string) => {
+    const res = await fetch(`/api/posts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility: newVisibility }),
+    });
+    if (res.ok) {
+      const { visibility: v } = await res.json();
+      setPosts((prev) => prev.map((p) => (p.id === id ? { ...p, visibility: v } : p)));
     }
   };
 
@@ -340,7 +374,7 @@ export default function PostsPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Posts</h1>
-          <p className="mt-1 text-sm text-gray-500">Share updates that appear on your public profile.</p>
+          <p className="mt-1 text-sm text-gray-500">Public posts appear on the landing page. Private posts only show on your profile.</p>
         </div>
 
         {/* Create box */}
@@ -423,6 +457,34 @@ export default function PostsPage() {
             </div>
           )}
 
+          {/* Visibility */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <div>
+              <p className="text-xs font-medium text-gray-700">Visibility</p>
+              <p className="mt-0.5 text-xs text-gray-400">Public shows on the landing page · private shows only on your profile.</p>
+            </div>
+            <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setVisibility("PUBLIC")}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  visibility === "PUBLIC" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Public
+              </button>
+              <button
+                type="button"
+                onClick={() => setVisibility("PRIVATE")}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  visibility === "PRIVATE" ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Private
+              </button>
+            </div>
+          </div>
+
           {/* Actions */}
           <div className="mt-4 flex items-center justify-between">
             <button
@@ -469,6 +531,7 @@ export default function PostsPage() {
                   post={post}
                   sessionImage={sessionImage}
                   onDelete={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
+                  onToggleVisibility={handleToggleVisibility}
                 />
               ))}
             </div>
