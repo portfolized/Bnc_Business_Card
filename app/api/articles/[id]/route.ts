@@ -28,6 +28,13 @@ export async function PATCH(
       ...(body.published !== undefined && { published: body.published }),
       ...(body.visibility !== undefined && { visibility: body.visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC" }),
     },
+    // Keep the nested `user` so the client can render the updated card.
+    select: {
+      id: true, title: true, content: true, excerpt: true,
+      imageUrl: true, tags: true, readTime: true, published: true, status: true, visibility: true,
+      views: true, createdAt: true,
+      user: { select: { name: true, username: true, image: true } },
+    },
   });
 
   return NextResponse.json(updated);

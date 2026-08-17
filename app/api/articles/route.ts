@@ -42,6 +42,14 @@ export async function POST(req: NextRequest) {
       published: published ?? false,
       visibility: visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC",
     },
+    // Return the same shape as GET so the client can render the new article
+    // immediately (it needs the nested `user` for the author initials/name).
+    select: {
+      id: true, title: true, content: true, excerpt: true,
+      imageUrl: true, tags: true, readTime: true, published: true, status: true, visibility: true,
+      views: true, createdAt: true,
+      user: { select: { name: true, username: true, image: true } },
+    },
   });
 
   return NextResponse.json(article, { status: 201 });

@@ -2,6 +2,18 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+// Prose styling so article HTML renders as a properly formatted document —
+// headings sized, paragraphs/lists spaced, links colored, long URLs wrapped,
+// and the `<div>` blocks the editor emits for paragraphs get vertical spacing.
+const PROSE =
+  "[&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic " +
+  "[&_u]:underline [&_s]:line-through [&_a]:text-blue-600 [&_a]:underline [&_a]:break-words " +
+  "[&_h1]:my-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:my-2.5 [&_h2]:text-xl [&_h2]:font-bold " +
+  "[&_h3]:my-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h4]:my-1.5 [&_h4]:font-semibold " +
+  "[&_p]:my-1.5 [&_div]:my-1 [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 " +
+  "[&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:text-gray-500 " +
+  "[&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-lg [&_hr]:my-4 [&_hr]:border-gray-200";
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const article = await prisma.article.findUnique({ where: { id, status: "APPROVED" }, select: { title: true, excerpt: true } });
@@ -76,9 +88,10 @@ export default async function PublicArticlePage({ params }: { params: Promise<{ 
             </div>
 
             {/* Content */}
-            <div className="mt-6 prose prose-gray max-w-none text-gray-700 leading-relaxed whitespace-pre-wrap">
-              {article.content}
-            </div>
+            <div
+              className={`mt-6 text-gray-700 leading-relaxed ${PROSE}`}
+              dangerouslySetInnerHTML={{ __html: article.content }}
+            />
           </div>
         </article>
 

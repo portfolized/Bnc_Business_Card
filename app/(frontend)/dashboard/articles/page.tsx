@@ -38,7 +38,7 @@ type Article = {
   visibility: string;
   views: number;
   createdAt: string;
-  user: { name: string | null; username: string | null; image: string | null };
+  user?: { name: string | null; username: string | null; image: string | null };
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ function ArticleCard({
   const [copied, setCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const initials = (article.user.name ?? "U")
+  const initials = (article.user?.name ?? "U")
     .split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 
   const preview = stripHtml(article.content).slice(0, 160);
@@ -134,9 +134,9 @@ function ArticleCard({
         {/* Left: author + meta */}
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
-            {(sessionImage ?? article.user.image) ? (
+            {(sessionImage ?? article.user?.image) ? (
               <img
-                src={(sessionImage ?? article.user.image)!}
+                src={(sessionImage ?? article.user?.image)!}
                 alt=""
                 referrerPolicy="no-referrer"
                 className="h-full w-full object-cover"
@@ -145,7 +145,7 @@ function ArticleCard({
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">
-              {article.user.name ?? article.user.username ?? "You"}
+              {article.user?.name ?? article.user?.username ?? "You"}
             </p>
             <p className="text-xs text-gray-400">{timeAgo(article.createdAt)} · {article.readTime}</p>
           </div>
