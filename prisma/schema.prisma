@@ -65,6 +65,8 @@ model Profile {
   greeting       String   @default("")
   ctaPrimary     String   @default("")
   ctaSecondary   String   @default("")
+  bankAccount    String   @default("")
+  insurance      String   @default("")
   socialLinks    Json     @default("[]")
   additionalInfo Json     @default("[]")
   views          Int      @default(0)

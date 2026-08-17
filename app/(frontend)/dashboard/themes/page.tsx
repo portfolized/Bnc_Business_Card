@@ -54,6 +54,15 @@ type Trial = {
   blockReason: string | null;
 };
 
+// Field-level validation messages shown after the user hits Save & Publish.
+type FieldErrors = {
+  fullName?: string;
+  domain?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+};
+
 // ─── Defaults ──────────────────────────────────────────────────────────────────
 
 // The domain your public profiles are served from. Used to build the live URL
@@ -75,6 +84,8 @@ const DEFAULT_PROFILE: Profile = {
   greeting: "",
   ctaPrimary: "",
   ctaSecondary: "",
+  bankAccount: "",
+  insurance: "",
   socialLinks: [] as { platform: string; url: string }[],
 };
 
@@ -139,6 +150,7 @@ function EditField({
   hint,
   required,
   error,
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -148,12 +160,22 @@ function EditField({
   hint?: string;
   required?: boolean;
   error?: string;
+  maxLength?: number;
 }) {
   const base =
     "w-full rounded-lg border px-3 py-2 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:ring-2";
   const state = error
     ? "border-red-300 focus:border-red-400 focus:ring-red-100"
     : "border-gray-200 focus:border-blue-400 focus:ring-blue-100";
+  const counter = maxLength ? (
+    <span
+      className={`tabular-nums ${
+        value.length >= maxLength ? "font-semibold text-amber-600" : "text-gray-400"
+      }`}
+    >
+      {value.length}/{maxLength}
+    </span>
+  ) : null;
   return (
     <div>
       <label className="mb-1.5 block text-xs font-medium text-gray-600">
@@ -166,6 +188,7 @@ function EditField({
           onChange={(e) => onChange(e.target.value)}
           rows={3}
           placeholder={placeholder}
+          maxLength={maxLength}
           className={`${base} resize-none ${state}`}
         />
       ) : (
@@ -173,13 +196,19 @@ function EditField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          maxLength={maxLength}
           className={`${base} ${state}`}
         />
       )}
       {error ? (
         <p className="mt-1 text-[11px] font-medium text-red-500">{error}</p>
       ) : (
-        hint && <p className="mt-1 text-[11px] text-gray-400">{hint}</p>
+        (hint || counter) && (
+          <div className="mt-1 flex items-center justify-between gap-2">
+            {hint ? <p className="text-[11px] text-gray-400">{hint}</p> : <span />}
+            {counter}
+          </div>
+        )
       )}
     </div>
   );
@@ -225,8 +254,8 @@ function EditDrawer({
   onSave: () => void;
   saving: boolean;
   saveError: string;
-  errors: { fullName?: string; domain?: string };
-  onClearError: (field: "fullName" | "domain") => void;
+  errors: FieldErrors;
+  onClearError: (field: keyof FieldErrors) => void;
 }) {
   return (
     <div
@@ -340,44 +369,41 @@ function EditDrawer({
               hint="Small intro line shown above your name."
             />
             <EditField
-              label="Headline"
+              label="Organization Name"
               value={profile.headline}
               onChange={(v) => onChange({ headline: v })}
               textarea
-              placeholder={
-                templateId === "modern" ? "e.g. Building Scalable & Engaging Web." :
-                templateId === "minimalist" ? "e.g. I help startups launch fast, scalable products." :
-                templateId === "creative" ? "e.g. Hey, I'm" :
-                templateId === "elegant" ? "e.g. Portfolio" :
-                "Your main headline or tagline"
-              }
+              placeholder="Your organization name"
               hint="The big hero text shown on your profile. Leave blank to use the template default."
+              maxLength={160}
             />
-            <EditField label="Bio" value={profile.bio} onChange={(v) => onChange({ bio: v })} textarea placeholder="A short description about yourself" />
+            <EditField label="Bio" value={profile.bio} onChange={(v) => onChange({ bio: v })} textarea placeholder="A short description about yourself" maxLength={500} />
             <EditField
-              label="Expertise / Skills"
+              label="Grade / Skills"
               value={profile.skills}
               onChange={(v) => onChange({ skills: v })}
-              placeholder="Strategy, Leadership, Product, Growth, Design"
+              placeholder="Grade 10, Science, Math, Sports"
               hint="Comma-separated — shown as tags on every template."
             />
-            <EditField label="Email" value={profile.email} onChange={(v) => onChange({ email: v })} placeholder="your@email.com" />
-            <EditField label="Phone" value={profile.phone} onChange={(v) => onChange({ phone: v })} placeholder="+1 234 567 8900" />
-            <EditField label="Website" value={profile.website} onChange={(v) => onChange({ website: v })} placeholder="yoursite.com" />
+            <EditField label="Email" value={profile.email} onChange={(v) => { onChange({ email: v }); if (errors.email) onClearError("email"); }} placeholder="your@email.com" error={errors.email} />
+            <EditField label="Phone" value={profile.phone} onChange={(v) => { onChange({ phone: v }); if (errors.phone) onClearError("phone"); }} placeholder="+1 234 567 8900" error={errors.phone} />
+            <EditField label="Website" value={profile.website} onChange={(v) => { onChange({ website: v }); if (errors.website) onClearError("website"); }} placeholder="yoursite.com" error={errors.website} />
             <EditField label="Location" value={profile.location} onChange={(v) => onChange({ location: v })} placeholder="City, Country" />
             <EditField
-              label="Primary button text"
-              value={profile.ctaPrimary}
-              onChange={(v) => onChange({ ctaPrimary: v })}
-              placeholder="e.g. Get in touch"
-              hint="The main call-to-action button. Leave blank for the template default."
+              label="Bank Account"
+              value={profile.bankAccount}
+              onChange={(v) => onChange({ bankAccount: v })}
+              textarea
+              placeholder="Bank name, account holder, account number…"
+              hint="Shown in a popup when visitors tap the “Bank Account” button."
             />
             <EditField
-              label="Secondary button text"
-              value={profile.ctaSecondary}
-              onChange={(v) => onChange({ ctaSecondary: v })}
-              placeholder="e.g. View work"
-              hint="The second button — shown on every template."
+              label="Insurance"
+              value={profile.insurance}
+              onChange={(v) => onChange({ insurance: v })}
+              textarea
+              placeholder="Insurance provider, policy number…"
+              hint="Shown in a popup when visitors tap the “Insurance” button."
             />
           </div>
 
@@ -570,7 +596,7 @@ export default function ThemesPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   // Field-level validation shown after the user hits Save & Publish.
-  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; domain?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [cards, setCards] = useState<Card[]>([]);
   const [trial, setTrial] = useState<Trial | null>(null);
   const [cardId, setCardId] = useState<string | null>(null);
@@ -598,7 +624,7 @@ export default function ThemesPage() {
     setFieldErrors((e) => (e.domain ? { ...e, domain: undefined } : e));
   };
 
-  const clearFieldError = (field: "fullName" | "domain") =>
+  const clearFieldError = (field: keyof FieldErrors) =>
     setFieldErrors((e) => ({ ...e, [field]: undefined }));
 
   // Pull the latest free-trial status (countdown + how many free templates are
@@ -708,6 +734,8 @@ export default function ThemesPage() {
             greeting: data.greeting ?? "",
             ctaPrimary: data.ctaPrimary ?? "",
             ctaSecondary: data.ctaSecondary ?? "",
+            bankAccount: data.bankAccount ?? "",
+            insurance: data.insurance ?? "",
             socialLinks: Array.isArray(data.socialLinks) ? data.socialLinks : [],
           });
           const savedTemplate = TEMPLATES.find((t) => t.id === data.cardTemplate);
@@ -780,9 +808,21 @@ export default function ThemesPage() {
   const handleApply = async () => {
     // Validate before doing anything. Collect every problem so all offending
     // fields light up at once, and stop here until they're fixed.
-    const nextErrors: { fullName?: string; domain?: string } = {};
+    const nextErrors: FieldErrors = {};
     if (!profile.fullName.trim()) {
       nextErrors.fullName = "Please enter your full name before publishing.";
+    }
+    const email = profile.email.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+    const phone = profile.phone.trim();
+    if (phone && phone.replace(/\D/g, "").length < 7) {
+      nextErrors.phone = "Enter a valid phone number.";
+    }
+    const website = profile.website.trim();
+    if (website && !/^(https?:\/\/)?([\w-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(website)) {
+      nextErrors.website = "Enter a valid website (e.g. yoursite.com).";
     }
     if (domainInput.trim()) {
       if (availability === "invalid") {
@@ -793,7 +833,7 @@ export default function ThemesPage() {
         nextErrors.domain = "Still checking this link — please wait a moment.";
       }
     }
-    if (nextErrors.fullName || nextErrors.domain) {
+    if (nextErrors.fullName || nextErrors.domain || nextErrors.email || nextErrors.phone || nextErrors.website) {
       setFieldErrors(nextErrors);
       setSaveError("Please fix the highlighted fields.");
       return;

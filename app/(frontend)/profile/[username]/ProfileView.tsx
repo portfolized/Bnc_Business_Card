@@ -13,7 +13,6 @@ import {
   Phone,
   Building2,
   User,
-  ChevronDown,
   CheckCircle2,
   Loader2,
   MessageSquare,
@@ -225,10 +224,6 @@ export default function ProfileView({
   const Component = template.Component;
   const cfg = TEMPLATE_FORM_CONFIG[templateId] ?? TEMPLATE_FORM_CONFIG.classic;
 
-  const scrollToForm = () => {
-    document.getElementById("contact-section")?.scrollIntoView({ behavior: "smooth" });
-  };
-
   return (
     <main>
       {/* ── Hero (the template) ── */}
@@ -236,19 +231,6 @@ export default function ProfileView({
         <ScaledHero>
           <Component profile={profile} />
         </ScaledHero>
-
-        {/* Scroll indicator */}
-        <button
-          type="button"
-          onClick={scrollToForm}
-          aria-label="Scroll to contact form"
-          className={`absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 transition-opacity hover:opacity-100 ${
-            cfg.dark ? "text-white/40 hover:text-white/70" : "text-gray-400 hover:text-gray-600"
-          }`}
-        >
-          <span className="text-xs font-medium tracking-widest uppercase">Contact</span>
-          <ChevronDown className="h-5 w-5 animate-bounce" />
-        </button>
       </section>
 
       {/* ── Blog / Articles Section ── */}

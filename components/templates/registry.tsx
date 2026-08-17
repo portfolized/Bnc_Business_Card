@@ -3,11 +3,11 @@ import {
   Phone,
   Globe,
   MapPin,
-  Contact,
-  ArrowUpRight,
   Sparkles,
   Star,
 } from "lucide-react";
+import RichText from "./RichText";
+import InfoButton from "./InfoButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +28,8 @@ export type Profile = {
   greeting: string;
   ctaPrimary: string;
   ctaSecondary: string;
+  bankAccount: string;
+  insurance: string;
   socialLinks: SocialLink[];
 };
 
@@ -252,20 +254,32 @@ function ClassicTemplate({ profile }: TemplateProps) {
         </p>
         <h1 className="text-5xl font-extrabold text-gray-900">{profile.fullName}</h1>
         <p className="mt-1 text-2xl text-gray-500">{profile.role}</p>
-        <p className="mt-3 max-w-2xl text-xl font-semibold text-gray-700">{txt(profile.headline, "Crafting work that speaks for itself.")}</p>
-        <p className="mt-2 max-w-2xl text-base leading-relaxed text-gray-500">{profile.bio}</p>
+        <RichText text={txt(profile.headline, "Crafting work that speaks for itself.")} className="mt-3 max-w-2xl text-xl font-semibold text-gray-700" />
+        <RichText text={profile.bio} className="mt-2 max-w-2xl text-base leading-relaxed text-gray-500" maxLength={200} />
         <SkillChips profile={profile} className="mt-4 flex flex-wrap justify-center gap-2" chipStyle={{ backgroundColor: `${profile.accent}14`, color: profile.accent }} />
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-base text-gray-600">
           <ContactItems profile={profile} iconColor={profile.accent} />
           <div className="mt-3"><SocialLinks profile={profile} iconColor={profile.accent} /></div>
         </div>
         <div className="mt-5 flex flex-wrap justify-center gap-3">
-          <button className="flex items-center gap-2 rounded-2xl px-7 py-3 text-lg font-semibold text-white shadow-lg" style={{ backgroundColor: profile.accent }}>
-            <Contact className="h-5 w-5" /> {txt(profile.ctaPrimary, "Add to Contacts")}
-          </button>
-          <button className="rounded-2xl border-2 px-7 py-3 text-lg font-semibold" style={{ borderColor: `${profile.accent}55`, color: profile.accent }}>
-            {txt(profile.ctaSecondary, "View work")}
-          </button>
+          <InfoButton
+            title="Bank Account"
+            content={profile.bankAccount}
+            accent={profile.accent}
+            className="rounded-2xl px-7 py-3 text-lg font-semibold text-white shadow-lg"
+            style={{ backgroundColor: profile.accent }}
+          >
+            Bank Account
+          </InfoButton>
+          <InfoButton
+            title="Insurance"
+            content={profile.insurance}
+            accent={profile.accent}
+            className="rounded-2xl border-2 px-7 py-3 text-lg font-semibold"
+            style={{ borderColor: `${profile.accent}55`, color: profile.accent }}
+          >
+            Insurance
+          </InfoButton>
         </div>
       </div>
     </div>
@@ -282,19 +296,17 @@ function ModernTemplate({ profile }: TemplateProps) {
         >
           <Sparkles className="h-4 w-4" /> {txt(profile.greeting, profile.role)}
         </span>
-        <h1 className="mt-5 text-6xl font-black leading-[1.05] tracking-tight text-gray-900">
-          {txt(profile.headline, "Building Scalable & Engaging Web.")}
-        </h1>
+        <RichText text={txt(profile.headline, "Building Scalable & Engaging Web.")} className="mt-5 text-6xl font-black leading-[1.05] tracking-tight text-gray-900" />
         <p className="mt-2 text-2xl font-semibold text-gray-400">{profile.role}</p>
-        <p className="mt-5 max-w-md text-xl leading-relaxed text-gray-500">{profile.bio}</p>
+        <RichText text={profile.bio} className="mt-5 max-w-md text-xl leading-relaxed text-gray-500" maxLength={200} />
         <SkillChips profile={profile} className="mt-5 flex flex-wrap gap-2" chipClassName="shadow-sm" chipStyle={{ backgroundColor: "#fff", color: profile.accent }} />
         <div className="mt-7 flex gap-4">
-          <button className="rounded-xl px-7 py-3.5 text-lg font-semibold text-white shadow-lg" style={{ backgroundColor: profile.accent }}>
-            {txt(profile.ctaPrimary, "Get in touch")}
-          </button>
-          <button className="rounded-xl border-2 border-gray-300 px-7 py-3.5 text-lg font-semibold text-gray-700">
-            {txt(profile.ctaSecondary, "View work")}
-          </button>
+          <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="rounded-xl px-7 py-3.5 text-lg font-semibold text-white shadow-lg" style={{ backgroundColor: profile.accent }}>
+            Bank Account
+          </InfoButton>
+          <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="rounded-xl border-2 border-gray-300 px-7 py-3.5 text-lg font-semibold text-gray-700">
+            Insurance
+          </InfoButton>
         </div>
       </div>
       <div className="flex w-[320px] shrink-0 flex-col items-center">
@@ -316,21 +328,19 @@ function MinimalistTemplate({ profile }: TemplateProps) {
     <div className="flex h-full w-full flex-col items-center justify-center bg-white px-24 text-center">
       <Avatar profile={profile} size={90} ring="#f3f4f6" />
       <p className="mt-5 text-sm uppercase tracking-[0.3em] text-gray-400">{txt(profile.greeting, profile.fullName)}</p>
-      <h1 className="mt-3 max-w-3xl text-5xl font-bold leading-tight tracking-tight text-gray-900">
-        {txt(profile.headline, "I help startups launch fast, scalable products.")}
-      </h1>
+      <RichText text={txt(profile.headline, "I help startups launch fast, scalable products.")} className="mt-3 max-w-3xl text-5xl font-bold leading-tight tracking-tight text-gray-900" />
       <p className="mt-4 text-xl uppercase tracking-widest text-gray-400">
         {profile.fullName} &mdash; {profile.role}
       </p>
-      <p className="mt-4 max-w-xl text-lg leading-relaxed text-gray-500">{profile.bio}</p>
+      <RichText text={profile.bio} className="mt-4 max-w-xl text-lg leading-relaxed text-gray-500" maxLength={200} />
       <SkillChips profile={profile} className="mt-5 flex flex-wrap justify-center gap-2" chipClassName="border border-gray-200" chipStyle={{ color: "#6b7280" }} />
       <div className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-base text-gray-500">
         <ContactItems profile={profile} />
       </div>
       <div className="mt-3 flex justify-center"><SocialLinks profile={profile} /></div>
       <div className="mt-6 flex gap-3">
-        <button className="rounded-full px-7 py-3 text-base font-semibold text-white" style={{ backgroundColor: profile.accent }}>{txt(profile.ctaPrimary, "Get in touch")}</button>
-        <button className="rounded-full border border-gray-300 px-7 py-3 text-base font-semibold text-gray-700">{txt(profile.ctaSecondary, "View work")}</button>
+        <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="rounded-full px-7 py-3 text-base font-semibold text-white" style={{ backgroundColor: profile.accent }}>Bank Account</InfoButton>
+        <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="rounded-full border border-gray-300 px-7 py-3 text-base font-semibold text-gray-700">Insurance</InfoButton>
       </div>
     </div>
   );
@@ -347,20 +357,16 @@ function PrimeTemplate({ profile }: TemplateProps) {
         <p className="text-xl font-medium text-gray-400">{txt(profile.greeting, "Hello, I am")}</p>
         <h1 className="mt-2 text-7xl font-black tracking-tight text-white">{profile.fullName}</h1>
         <p className="mt-3 text-3xl font-semibold" style={{ color: profile.accent }}>{profile.role}</p>
-        <p className="mt-4 max-w-2xl text-2xl font-medium text-gray-200">{txt(profile.headline, "Designing bold digital experiences.")}</p>
-        <p className="mt-4 max-w-xl text-xl leading-relaxed text-gray-400">{profile.bio}</p>
+        <RichText text={txt(profile.headline, "Designing bold digital experiences.")} className="mt-4 max-w-2xl text-2xl font-medium text-gray-200" />
+        <RichText text={profile.bio} className="mt-4 max-w-xl text-xl leading-relaxed text-gray-400" maxLength={200} />
         <SkillChips profile={profile} className="mt-5 flex flex-wrap gap-2" chipStyle={{ backgroundColor: "rgba(255,255,255,0.08)", color: "#fff" }} />
         <div className="mt-6 flex flex-wrap items-center gap-x-7 gap-y-2 text-lg text-gray-300">
           <ContactItems profile={profile} iconColor={profile.accent} />
           <div className="mt-3"><SocialLinks profile={profile} iconColor={profile.accent} /></div>
         </div>
         <div className="mt-7 flex gap-4">
-          <button className="rounded-full px-8 py-3.5 text-lg font-semibold text-white shadow-xl" style={{ backgroundColor: profile.accent }}>
-            {txt(profile.ctaPrimary, "Let's talk")}
-          </button>
-          <button className="rounded-full border border-white/30 px-8 py-3.5 text-lg font-semibold text-white backdrop-blur">
-            {txt(profile.ctaSecondary, "Download CV")}
-          </button>
+          <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="rounded-full px-8 py-3.5 text-lg font-semibold text-white shadow-xl" style={{ backgroundColor: profile.accent }}>Bank Account</InfoButton>
+          <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="rounded-full border border-white/30 px-8 py-3.5 text-lg font-semibold text-white backdrop-blur">Insurance</InfoButton>
         </div>
       </div>
     </div>
@@ -378,20 +384,16 @@ function MidnightTemplate({ profile }: TemplateProps) {
         <p className="mt-4 text-sm font-semibold uppercase tracking-[0.2em]" style={{ color: profile.accent }}>{txt(profile.greeting, "Hello, I am")}</p>
         <h1 className="text-4xl font-extrabold text-white">{profile.fullName}</h1>
         <p className="mt-1 text-lg font-semibold uppercase tracking-widest text-gray-400">{profile.role}</p>
-        <p className="mt-3 text-lg font-medium text-gray-200">{txt(profile.headline, "Crafting standout brands.")}</p>
-        <p className="mt-2 text-base leading-relaxed text-gray-400">{profile.bio}</p>
+        <RichText text={txt(profile.headline, "Crafting standout brands.")} className="mt-3 text-lg font-medium text-gray-200" />
+        <RichText text={profile.bio} className="mt-2 text-base leading-relaxed text-gray-400" maxLength={200} />
         <SkillChips profile={profile} className="mt-4 flex flex-wrap justify-center gap-2" chipClassName="border border-white/10" chipStyle={{ backgroundColor: "rgba(255,255,255,0.05)", color: "#d1d5db" }} />
         <div className="mt-4 grid grid-cols-2 gap-3 text-left text-base text-gray-300">
           <ContactItems profile={profile} iconColor={profile.accent} />
           <div className="mt-3"><SocialLinks profile={profile} iconColor={profile.accent} /></div>
         </div>
         <div className="mt-5 flex justify-center gap-3">
-          <button className="rounded-2xl px-7 py-3 text-base font-bold text-white" style={{ backgroundColor: profile.accent }}>
-            {txt(profile.ctaPrimary, "Connect with me")}
-          </button>
-          <button className="rounded-2xl border border-white/20 px-7 py-3 text-base font-bold text-white">
-            {txt(profile.ctaSecondary, "View work")}
-          </button>
+          <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="rounded-2xl px-7 py-3 text-base font-bold text-white" style={{ backgroundColor: profile.accent }}>Bank Account</InfoButton>
+          <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="rounded-2xl border border-white/20 px-7 py-3 text-base font-bold text-white">Insurance</InfoButton>
         </div>
       </div>
     </div>
@@ -409,16 +411,16 @@ function AuroraTemplate({ profile }: TemplateProps) {
         <p className="mt-4 text-sm font-bold uppercase tracking-[0.2em] text-white/90">{txt(profile.greeting, "Hello, I am")}</p>
         <h1 className="text-5xl font-black drop-shadow">{profile.fullName}</h1>
         <p className="mt-1 text-2xl font-medium text-white/90">{profile.role}</p>
-        <p className="mt-3 text-2xl font-semibold">{txt(profile.headline, "Let's make something vibrant.")}</p>
-        <p className="mt-2 text-lg leading-relaxed text-white/90">{profile.bio}</p>
+        <RichText text={txt(profile.headline, "Let's make something vibrant.")} className="mt-3 text-2xl font-semibold" />
+        <RichText text={profile.bio} className="mt-2 text-lg leading-relaxed text-white/90" maxLength={200} />
         <SkillChips profile={profile} className="mt-4 flex flex-wrap justify-center gap-2" chipStyle={{ backgroundColor: "rgba(255,255,255,0.25)", color: "#fff" }} />
         <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-base text-white/90">
           <ContactItems profile={profile} />
           <div className="mt-3"><SocialLinks profile={profile} /></div>
         </div>
         <div className="mt-5 flex justify-center gap-3">
-          <button className="rounded-full bg-white px-7 py-3 text-base font-bold text-gray-900 shadow-lg">{txt(profile.ctaPrimary, "Hire me")}</button>
-          <button className="rounded-full border-2 border-white px-7 py-3 text-base font-bold text-white">{txt(profile.ctaSecondary, "Portfolio")}</button>
+          <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="rounded-full bg-white px-7 py-3 text-base font-bold text-gray-900 shadow-lg">Bank Account</InfoButton>
+          <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="rounded-full border-2 border-white px-7 py-3 text-base font-bold text-white">Insurance</InfoButton>
         </div>
       </div>
     </div>
@@ -439,16 +441,16 @@ function CorporateTemplate({ profile }: TemplateProps) {
       </div>
       <div className="flex flex-1 flex-col justify-center p-12">
         <p className="text-sm font-bold uppercase tracking-[0.2em]" style={{ color: profile.accent }}>{txt(profile.greeting, "About me")}</p>
-        <h2 className="mt-2 text-4xl font-extrabold leading-tight text-gray-900">{txt(profile.headline, "Driving results through strategy.")}</h2>
-        <p className="mt-4 text-xl leading-relaxed text-gray-600">{profile.bio}</p>
+        <RichText text={txt(profile.headline, "Driving results through strategy.")} className="mt-2 text-4xl font-extrabold leading-tight text-gray-900" />
+        <RichText text={profile.bio} className="mt-4 text-xl leading-relaxed text-gray-600" maxLength={200} />
         <SkillChips profile={profile} className="mt-6 flex flex-wrap gap-2.5" chipStyle={{ backgroundColor: `${profile.accent}14`, color: profile.accent }} />
         <div className="mt-8 flex gap-3">
-          <button className="flex items-center gap-2 rounded-xl px-7 py-3.5 text-lg font-semibold text-white" style={{ backgroundColor: profile.accent }}>
-            {txt(profile.ctaPrimary, "Book a meeting")} <ArrowUpRight className="h-5 w-5" />
-          </button>
-          <button className="rounded-xl border-2 px-7 py-3.5 text-lg font-semibold" style={{ borderColor: `${profile.accent}55`, color: profile.accent }}>
-            {txt(profile.ctaSecondary, "View work")}
-          </button>
+          <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="rounded-xl px-7 py-3.5 text-lg font-semibold text-white" style={{ backgroundColor: profile.accent }}>
+            Bank Account
+          </InfoButton>
+          <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="rounded-xl border-2 px-7 py-3.5 text-lg font-semibold" style={{ borderColor: `${profile.accent}55`, color: profile.accent }}>
+            Insurance
+          </InfoButton>
         </div>
       </div>
     </div>
@@ -464,8 +466,8 @@ function CreativeTemplate({ profile }: TemplateProps) {
       <div className="relative flex h-full flex-col justify-center px-20">
         <p className="text-2xl font-bold" style={{ color: profile.accent }}>{txt(profile.greeting, "Hey, I'm")}</p>
         <h1 className="text-7xl font-black leading-none text-gray-900">{profile.fullName}.</h1>
-        <p className="mt-3 max-w-xl text-3xl font-bold text-gray-800">{txt(profile.headline, "I make brands unforgettable.")}</p>
-        <p className="mt-3 max-w-lg text-xl font-medium text-gray-700">{profile.bio}</p>
+        <RichText text={txt(profile.headline, "I make brands unforgettable.")} className="mt-3 max-w-xl text-3xl font-bold text-gray-800" />
+        <RichText text={profile.bio} className="mt-3 max-w-lg text-xl font-medium text-gray-700" maxLength={200} />
         <div className="mt-4 inline-flex w-fit items-center gap-2 rounded-2xl bg-gray-900 px-5 py-2.5 text-xl font-bold text-white">
           <Star className="h-5 w-5" style={{ color: profile.accent }} /> {profile.role}
         </div>
@@ -475,12 +477,8 @@ function CreativeTemplate({ profile }: TemplateProps) {
           <div className="mt-3"><SocialLinks profile={profile} /></div>
         </div>
         <div className="mt-5 flex gap-3 text-lg">
-          <button className="rounded-full px-8 py-3.5 font-bold text-white shadow-[5px_5px_0_0_#111]" style={{ backgroundColor: profile.accent }}>
-            {txt(profile.ctaPrimary, "Say hello")}
-          </button>
-          <button className="rounded-full border-2 border-gray-900 px-8 py-3.5 font-bold text-gray-900">
-            {txt(profile.ctaSecondary, "Portfolio")}
-          </button>
+          <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="rounded-full px-8 py-3.5 font-bold text-white shadow-[5px_5px_0_0_#111]" style={{ backgroundColor: profile.accent }}>Bank Account</InfoButton>
+          <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="rounded-full border-2 border-gray-900 px-8 py-3.5 font-bold text-gray-900">Insurance</InfoButton>
         </div>
       </div>
     </div>
@@ -496,20 +494,16 @@ function ElegantTemplate({ profile }: TemplateProps) {
       <div className="my-5 h-px w-20" style={{ backgroundColor: profile.accent }} />
       <h1 className="text-6xl font-light tracking-tight text-gray-900" style={{ fontFamily: "Georgia, serif" }}>{profile.fullName}</h1>
       <p className="mt-3 text-2xl italic text-gray-500" style={{ fontFamily: "Georgia, serif" }}>{profile.role}</p>
-      <p className="mt-4 max-w-2xl text-2xl font-light text-gray-700" style={{ fontFamily: "Georgia, serif" }}>{txt(profile.headline, "Timeless work, thoughtfully made.")}</p>
-      <p className="mt-3 max-w-xl text-lg leading-relaxed text-gray-600">{profile.bio}</p>
+      <RichText text={txt(profile.headline, "Timeless work, thoughtfully made.")} className="mt-4 max-w-2xl text-2xl font-light text-gray-700" style={{ fontFamily: "Georgia, serif" }} />
+      <RichText text={profile.bio} className="mt-3 max-w-xl text-lg leading-relaxed text-gray-600" maxLength={200} />
       <SkillChips profile={profile} className="mt-5 flex flex-wrap justify-center gap-2" chipStyle={{ border: `1px solid ${profile.accent}55`, color: profile.accent }} />
       <div className="mt-5 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-base text-gray-600">
         <ContactItems profile={profile} iconColor={profile.accent} />
       </div>
       <div className="mt-3 flex justify-center"><SocialLinks profile={profile} iconColor={profile.accent} /></div>
       <div className="mt-6 flex gap-3">
-        <button className="border-2 px-9 py-3 text-base font-semibold uppercase tracking-widest" style={{ borderColor: profile.accent, color: profile.accent }}>
-          {txt(profile.ctaPrimary, "Get in touch")}
-        </button>
-        <button className="px-9 py-3 text-base font-semibold uppercase tracking-widest text-white" style={{ backgroundColor: profile.accent }}>
-          {txt(profile.ctaSecondary, "View work")}
-        </button>
+        <InfoButton title="Bank Account" content={profile.bankAccount} accent={profile.accent} className="border-2 px-9 py-3 text-base font-semibold uppercase tracking-widest" style={{ borderColor: profile.accent, color: profile.accent }}>Bank Account</InfoButton>
+        <InfoButton title="Insurance" content={profile.insurance} accent={profile.accent} className="px-9 py-3 text-base font-semibold uppercase tracking-widest text-white" style={{ backgroundColor: profile.accent }}>Insurance</InfoButton>
       </div>
     </div>
   );
@@ -556,8 +550,8 @@ function TechTemplate({ profile }: TemplateProps) {
           </p>
           <p className="text-gray-400">{"}"}</p>
           <p className="pt-3 text-gray-500">
-            <span className="text-green-400">$</span> {txt(profile.ctaPrimary, "hire")} {firstName}{" "}
-            <span className="text-gray-600">--{txt(profile.ctaSecondary, "portfolio")}</span>
+            <span className="text-green-400">$</span> bank-account {firstName}{" "}
+            <span className="text-gray-600">--insurance</span>
             <span className="ml-1 inline-block h-5 w-2.5 animate-pulse align-middle" style={{ backgroundColor: profile.accent }} />
           </p>
         </div>

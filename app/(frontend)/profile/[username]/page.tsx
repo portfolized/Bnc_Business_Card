@@ -85,7 +85,7 @@ export default async function PublicProfilePage({
     id: a.id,
     type: "article" as const,
     title: a.title,
-    excerpt: a.excerpt || stripHtml(a.title).slice(0, 140),
+    excerpt: stripHtml(a.excerpt) || stripHtml(a.title).slice(0, 140),
     imageUrl: a.imageUrl,
     tag: a.tags ? a.tags.split(",")[0].trim() : "Article",
     readTime: a.readTime,
@@ -135,6 +135,8 @@ export default async function PublicProfilePage({
     greeting: dbProfile.greeting || "",
     ctaPrimary: dbProfile.ctaPrimary || "",
     ctaSecondary: dbProfile.ctaSecondary || "",
+    bankAccount: dbProfile.bankAccount || "",
+    insurance: dbProfile.insurance || "",
     socialLinks: (dbProfile.socialLinks as SocialLink[]) || [],
   };
 

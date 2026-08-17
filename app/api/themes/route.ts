@@ -50,6 +50,8 @@ export async function GET(req: NextRequest) {
     greeting: profile.greeting,
     ctaPrimary: profile.ctaPrimary,
     ctaSecondary: profile.ctaSecondary,
+    bankAccount: profile.bankAccount,
+    insurance: profile.insurance,
     socialLinks: profile.socialLinks,
   });
 }
@@ -79,6 +81,8 @@ export async function PUT(req: NextRequest) {
     greeting,
     ctaPrimary,
     ctaSecondary,
+    bankAccount,
+    insurance,
     socialLinks,
   } = body;
 
@@ -109,6 +113,8 @@ export async function PUT(req: NextRequest) {
       greeting: greeting !== undefined ? greeting : profile.greeting,
       ctaPrimary: ctaPrimary !== undefined ? ctaPrimary : profile.ctaPrimary,
       ctaSecondary: ctaSecondary !== undefined ? ctaSecondary : profile.ctaSecondary,
+      bankAccount: bankAccount !== undefined ? bankAccount : profile.bankAccount,
+      insurance: insurance !== undefined ? insurance : profile.insurance,
       socialLinks: socialLinks !== undefined ? socialLinks : profile.socialLinks,
     },
   });
